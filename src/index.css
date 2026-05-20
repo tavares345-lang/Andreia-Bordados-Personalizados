@@ -1,0 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Base override to apply the elegant dark theme globally */
+#atelie_root {
+  background-color: #0f172a !important; /* Slate 900 */
+  color: #f1f5f9 !important; /* Slate 100 */
+}
+
+/* Box & Panels override to match Dark Slate 800 */
+#atelie_root .bg-white {
+  background-color: #1e293b !important; /* Slate 800 */
+}
+
+#atelie_root .bg-slate-50,
+#atelie_root .bg-slate-50\/25,
+#atelie_root .bg-slate-50\/20,
+#atelie_root .bg-slate-50\/40,
+#atelie_root .bg-slate-50\/10,
+#atelie_root .bg-slate-50\/50,
+#atelie_root .bg-slate-100,
+#atelie_root .bg-slate-50\/5 {
+  background-color: #1e293b !important;
+}
+
+/* Border overrides to subtle Slate 700 */
+#atelie_root .border,
+#atelie_root .border-slate-100,
+#atelie_root .border-slate-150,
+#atelie_root .border-gray-50,
+#atelie_root .border-gray-100,
+#atelie_root .border-gray-150,
+#atelie_root .border-gray-200,
+#atelie_root .border-slate-205,
+#atelie_root .border-slate-200,
+#atelie_root .border-dashed {
+  border-color: #334155 !important;
+}
+
+/* Text and Headings overrides to contrast white/light gray */
+#atelie_root .text-slate-800,
+#atelie_root .text-gray-800,
+#atelie_root .text-gray-900,
+#atelie_root .text-indigo-950,
+#atelie_root .text-gray-850,
+#atelie_root .text-slate-850,
+#atelie_root .text-gray-750,
+#atelie_root .text-gray-700,
+#atelie_root .text-indigo-900 {
+  color: #f8fafc !important;
+}
+
+/* Slate muted text descriptions/meta labels */
+#atelie_root .text-gray-500,
+#atelie_root .text-slate-500,
+#atelie_root .text-gray-410,
+#atelie_root .text-gray-420,
+#atelie_root .text-gray-405,
+#atelie_root .text-gray-400,
+#atelie_root .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Hover backgrounds inside tables, items list, and drawers */
+#atelie_root .hover\:bg-slate-50\/50:hover,
+#atelie_root .hover\:bg-slate-50:hover,
+#atelie_root .hover\:bg-slate-100:hover,
+#atelie_root .hover\:bg-slate-50\/20:hover {
+  background-color: #334155 !important;
+}
+
+/* Active action pills and informational Indigo groups */
+#atelie_root .bg-indigo-50,
+#atelie_root .bg-indigo-50\/40,
+#atelie_root .bg-indigo-50\/50,
+#atelie_root .bg-indigo-50\/20 {
+  background-color: #1e1b4b !important; /* Rich Indigo shadow */
+  color: #a5b4fc !important;
+  border-color: #4338ca !important;
+}
+
+#atelie_root .text-indigo-700,
+#atelie_root .text-indigo-805,
+#atelie_root .text-indigo-600 {
+  color: #a5b4fc !important;
+}
+
+/* Success panels (e.g. positive results, status ticks) */
+#atelie_root .bg-emerald-50,
+#atelie_root .bg-emerald-50\/40,
+#atelie_root .bg-emerald-50\/20,
+#atelie_root .bg-emerald-100 {
+  background-color: #064e3b !important; /* Deep Forest Emerald */
+  color: #6ee7b7 !important;
+  border-color: #047857 !important;
+}
+
+#atelie_root .text-emerald-700,
+#atelie_root .text-emerald-800,
+#atelie_root .text-emerald-600 {
+  color: #6ee7b7 !important;
+}
+
+/* Pending Alerts & Amber Warn elements */
+#atelie_root .bg-amber-50,
+#atelie_root .bg-amber-50\/50,
+#atelie_root .bg-amber-50\/20,
+#atelie_root .bg-amber-50\/15,
+#atelie_root .bg-amber-100\/55,
+#atelie_root .bg-amber-100 {
+  background-color: #7c2d12 !important; /* Burnt Orange */
+  color: #fde047 !important;
+  border-color: #b45309 !important;
+}
+
+#atelie_root .text-amber-800,
+#atelie_root .text-amber-900,
+#atelie_root .text-amber-855,
+#atelie_root .text-amber-850,
+#atelie_root .text-amber-700 {
+  color: #fef08a !important;
+}
+
+/* High attention / late warnings (Rose/Red) */
+#atelie_root .bg-rose-50,
+#atelie_root .bg-rose-50\/20,
+#atelie_root .bg-rose-100 {
+  background-color: #881337 !important; /* Deep Burgundy Rose */
+  color: #fecdd3 !important;
+  border-color: #be123c !important;
+}
+
+#atelie_root .text-rose-700,
+#atelie_root .text-rose-800,
+#atelie_root .text-rose-850,
+#atelie_root .text-rose-600 {
+  color: #fda4af !important;
+}
+
+/* Form input elements styling overrides */
+#atelie_root input,
+#atelie_root select,
+#atelie_root textarea {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+  outline: none !important;
+}
+
+#atelie_root input::placeholder,
+#atelie_root textarea::placeholder {
+  color: #475569 !important;
+}
+
+#atelie_root input:focus,
+#atelie_root select:focus,
+#atelie_root textarea:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 1px #6366f1 !important;
+}
+
+/* Custom clean visual tabs under search and table header */
+#atelie_root .bg-slate-50\/20 {
+  background-color: #0f172a !important;
+}
+
+/* Webkit Scrollbars styling */
+#atelie_root ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+#atelie_root ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+#atelie_root ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}

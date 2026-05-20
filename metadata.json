@@ -1,0 +1,6 @@
+{
+  "name": "Ateliê de Bordado",
+  "description": "Plataforma completa para gestão de pedidos, orçamentos, clientes, estoque e finanças de ateliê de bordado.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
