@@ -64,6 +64,17 @@ export interface ArtMatrix {
   createdAt: string;
 }
 
+export interface CalculatorPreset {
+  id: string;
+  name: string;
+  points: number;
+  manualTime: number; // in hours
+  matrixEdit: number; // in R$
+  fabric?: string;
+  otherCosts: number; // in R$
+  profitMargin?: number; // %
+}
+
 export interface DashboardStats {
   ordersInProgress: number;
   lateOrders: number;

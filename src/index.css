@@ -6,177 +6,160 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-/* Base override to apply the elegant dark theme globally */
+/* Light Theme Root Settings */
 #atelie_root {
-  background-color: #0f172a !important; /* Slate 900 */
-  color: #f1f5f9 !important; /* Slate 100 */
+  background-color: #f8fafc; /* Slate 50 */
+  color: #1e293b; /* Slate 800 */
 }
 
-/* Box & Panels override to match Dark Slate 800 */
-#atelie_root .bg-white {
-  background-color: #1e293b !important; /* Slate 800 */
+/* Form input styling for light mode */
+input,
+select,
+textarea {
+  transition: all 0.15s ease-in-out;
 }
 
-#atelie_root .bg-slate-50,
-#atelie_root .bg-slate-50\/25,
-#atelie_root .bg-slate-50\/20,
-#atelie_root .bg-slate-50\/40,
-#atelie_root .bg-slate-50\/10,
-#atelie_root .bg-slate-50\/50,
-#atelie_root .bg-slate-100,
-#atelie_root .bg-slate-50\/5 {
-  background-color: #1e293b !important;
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
 }
 
-/* Border overrides to subtle Slate 700 */
-#atelie_root .border,
-#atelie_root .border-slate-100,
-#atelie_root .border-slate-150,
-#atelie_root .border-gray-50,
-#atelie_root .border-gray-100,
-#atelie_root .border-gray-150,
-#atelie_root .border-gray-200,
-#atelie_root .border-slate-205,
-#atelie_root .border-slate-200,
-#atelie_root .border-dashed {
-  border-color: #334155 !important;
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
-
-/* Text and Headings overrides to contrast white/light gray */
-#atelie_root .text-slate-800,
-#atelie_root .text-gray-800,
-#atelie_root .text-gray-900,
-#atelie_root .text-indigo-950,
-#atelie_root .text-gray-850,
-#atelie_root .text-slate-850,
-#atelie_root .text-gray-750,
-#atelie_root .text-gray-700,
-#atelie_root .text-indigo-900 {
-  color: #f8fafc !important;
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
 }
-
-/* Slate muted text descriptions/meta labels */
-#atelie_root .text-gray-500,
-#atelie_root .text-slate-500,
-#atelie_root .text-gray-410,
-#atelie_root .text-gray-420,
-#atelie_root .text-gray-405,
-#atelie_root .text-gray-400,
-#atelie_root .text-slate-400 {
-  color: #94a3b8 !important;
-}
-
-/* Hover backgrounds inside tables, items list, and drawers */
-#atelie_root .hover\:bg-slate-50\/50:hover,
-#atelie_root .hover\:bg-slate-50:hover,
-#atelie_root .hover\:bg-slate-100:hover,
-#atelie_root .hover\:bg-slate-50\/20:hover {
-  background-color: #334155 !important;
-}
-
-/* Active action pills and informational Indigo groups */
-#atelie_root .bg-indigo-50,
-#atelie_root .bg-indigo-50\/40,
-#atelie_root .bg-indigo-50\/50,
-#atelie_root .bg-indigo-50\/20 {
-  background-color: #1e1b4b !important; /* Rich Indigo shadow */
-  color: #a5b4fc !important;
-  border-color: #4338ca !important;
-}
-
-#atelie_root .text-indigo-700,
-#atelie_root .text-indigo-805,
-#atelie_root .text-indigo-600 {
-  color: #a5b4fc !important;
-}
-
-/* Success panels (e.g. positive results, status ticks) */
-#atelie_root .bg-emerald-50,
-#atelie_root .bg-emerald-50\/40,
-#atelie_root .bg-emerald-50\/20,
-#atelie_root .bg-emerald-100 {
-  background-color: #064e3b !important; /* Deep Forest Emerald */
-  color: #6ee7b7 !important;
-  border-color: #047857 !important;
-}
-
-#atelie_root .text-emerald-700,
-#atelie_root .text-emerald-800,
-#atelie_root .text-emerald-600 {
-  color: #6ee7b7 !important;
-}
-
-/* Pending Alerts & Amber Warn elements */
-#atelie_root .bg-amber-50,
-#atelie_root .bg-amber-50\/50,
-#atelie_root .bg-amber-50\/20,
-#atelie_root .bg-amber-50\/15,
-#atelie_root .bg-amber-100\/55,
-#atelie_root .bg-amber-100 {
-  background-color: #7c2d12 !important; /* Burnt Orange */
-  color: #fde047 !important;
-  border-color: #b45309 !important;
-}
-
-#atelie_root .text-amber-800,
-#atelie_root .text-amber-900,
-#atelie_root .text-amber-855,
-#atelie_root .text-amber-850,
-#atelie_root .text-amber-700 {
-  color: #fef08a !important;
-}
-
-/* High attention / late warnings (Rose/Red) */
-#atelie_root .bg-rose-50,
-#atelie_root .bg-rose-50\/20,
-#atelie_root .bg-rose-100 {
-  background-color: #881337 !important; /* Deep Burgundy Rose */
-  color: #fecdd3 !important;
-  border-color: #be123c !important;
-}
-
-#atelie_root .text-rose-700,
-#atelie_root .text-rose-800,
-#atelie_root .text-rose-850,
-#atelie_root .text-rose-600 {
-  color: #fda4af !important;
-}
-
-/* Form input elements styling overrides */
-#atelie_root input,
-#atelie_root select,
-#atelie_root textarea {
-  background-color: #0f172a !important;
-  border-color: #334155 !important;
-  color: #f8fafc !important;
-  outline: none !important;
-}
-
-#atelie_root input::placeholder,
-#atelie_root textarea::placeholder {
-  color: #475569 !important;
-}
-
-#atelie_root input:focus,
-#atelie_root select:focus,
-#atelie_root textarea:focus {
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 1px #6366f1 !important;
-}
-
-/* Custom clean visual tabs under search and table header */
-#atelie_root .bg-slate-50\/20 {
-  background-color: #0f172a !important;
-}
-
-/* Webkit Scrollbars styling */
-#atelie_root ::-webkit-scrollbar-track {
-  background: #0f172a;
-}
-#atelie_root ::-webkit-scrollbar-thumb {
-  background: #334155;
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
   border-radius: 4px;
 }
-#atelie_root ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ==========================================================================
+   LAYOUT LIMPO E ELEGANTE DE IMPRESSÃO (PEDIDOS & ORÇAMENTOS)
+   Oculta barras laterais, menus, botões e elementos de interface.
+   Exibe exclusivamente o cabeçalho, dados do cliente, itens, valores e assinaturas.
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  /* Reset de layout e fundo para papel branco limpo */
+  html, body, #root, #atelie_root, #main_working_canvas {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+
+  /* Ocultar elementos de navegação, sidebars, filtros e botões de interface */
+  #desktop_sidebar,
+  #topbar_header,
+  #mobile_header,
+  #orders_list_panel,
+  #status_flow_tracker,
+  #atelier_active_badge,
+  .print\:hidden,
+  button,
+  input,
+  select,
+  textarea,
+  nav,
+  aside,
+  header:not(.print-header),
+  footer:not(.print-footer) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Remover sombras, fundos escuros e bordas desnecessárias */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* O container de impressão ocupa 100% da folha */
+  #printable_order_sheet,
+  #printable_quote_sheet,
+  .printable-sheet {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Desativar modais e centralizações relativas na impressão */
+  #order_print_sheet_modal,
+  #official_quote_modal {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    overflow: visible !important;
+    backdrop-filter: none !important;
+  }
+
+  #order_print_sheet_modal > div,
+  #official_quote_modal > div {
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  /* Estilização nítida de tabelas e blocos informativos para impressão */
+  .print-card {
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    padding: 10px 14px !important;
+    margin-bottom: 12px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-highlight {
+    background-color: #f8fafc !important;
+    border: 1.5px solid #94a3b8 !important;
+  }
+
+  /* Evitar quebras de página desagradáveis no meio das seções */
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Garantir que imagens como a Logo sejam impressas com fidelidade */
+  img {
+    max-width: 100% !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
 }

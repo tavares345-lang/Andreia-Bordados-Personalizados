@@ -1,5 +1,6 @@
 import React from 'react';
 import { Client, Order, Expense, InventoryItem, OrderStatus } from '../types';
+import { ANDREIA_LOGO_URL } from '../assets/logo';
 import { 
   ShoppingBag, 
   AlertTriangle, 
@@ -12,7 +13,9 @@ import {
   ArrowRight,
   Clock,
   User,
-  Phone
+  Phone,
+  Calculator,
+  Plus
 } from 'lucide-react';
 
 interface DashboardTabProps {
@@ -101,6 +104,46 @@ export default function DashboardTab({
   return (
     <div className="space-y-6" id="dashboard_tab">
       
+      {/* Banner de Boas-Vindas Andreia Bordados com Logo */}
+      <div className="p-4 sm:p-5 bg-gradient-to-r from-rose-50/80 via-white to-indigo-50/50 rounded-2xl border border-rose-100 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4 text-left">
+          <img 
+            src={ANDREIA_LOGO_URL} 
+            alt="Logo Andreia Bordados" 
+            className="h-14 w-14 sm:h-16 sm:w-16 rounded-full object-cover border-2 border-rose-200 shadow-xs ring-4 ring-rose-50/70 shrink-0"
+            referrerPolicy="no-referrer"
+          />
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 font-sans tracking-tight">
+                Andreia Bordados
+              </h2>
+              <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-3xs font-bold rounded-full uppercase">
+                Painel Ativo
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Gestão integrada de pedidos, matrizes, custos e orçamentos personalizados.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+          <button
+            onClick={() => onNavigateToTab('calculator')}
+            className="flex-1 sm:flex-initial px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition active:scale-95"
+          >
+            <Calculator className="h-3.5 w-3.5" /> Calcular Orçamento
+          </button>
+          <button
+            onClick={() => onNavigateToTab('orders')}
+            className="flex-1 sm:flex-initial px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition active:scale-95"
+          >
+            <Plus className="h-3.5 w-3.5" /> Novo Pedido
+          </button>
+        </div>
+      </div>
+
       {/* Alertas Críticos se houver */}
       {(lateOrders.length > 0 || lowStockItems.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

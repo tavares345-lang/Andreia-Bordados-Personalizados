@@ -183,7 +183,7 @@ export default function AgendaTab({ orders, onUpdateOrder, todayDate }: AgendaTa
                     {/* Lado Direito: Prazo e Ações Rápidas de Entrega */}
                     <div className="flex items-center justify-between md:justify-end gap-3.5 border-t md:border-t-0 pt-2 md:pt-0 border-gray-50 shrink-0">
                       <div className="text-left md:text-right font-sans">
-                        <span className="text-4xs text-gray-410 block font-bold uppercase">PRAZO DE OUTGANG</span>
+                        <span className="text-4xs text-gray-400 block font-bold uppercase tracking-wider">PRAZO DE ENTREGA</span>
                         <span className={`text-xs font-bold ${isLate ? 'text-rose-600 font-black animate-pulse' : 'text-gray-700'}`}>
                           {formatDatePT(order.deliveryDate)}
                         </span>

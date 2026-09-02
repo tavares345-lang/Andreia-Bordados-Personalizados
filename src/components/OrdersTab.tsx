@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Client, Order, OrderStatus } from '../types';
+import { ANDREIA_LOGO_URL } from '../assets/logo';
 import { 
   Plus, 
   Search, 
@@ -18,7 +19,11 @@ import {
   Settings,
   Clock,
   ExternalLink,
-  ChevronLeft
+  ChevronLeft,
+  Printer,
+  FileText,
+  Eye,
+  Sparkles
 } from 'lucide-react';
 
 interface OrdersTabProps {
@@ -48,6 +53,8 @@ export default function OrdersTab({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(orders[0] || null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // If selected from dashboard, force focus on it
   useEffect(() => {
@@ -62,7 +69,7 @@ export default function OrdersTab({
   const [formProduct, setFormProduct] = useState('');
   const [formQuantity, setFormQuantity] = useState(1);
   const [formSize, setFormSize] = useState('14x14 cm');
-  const [formFabric, setFormFabric] = useState('Fralda');
+  const [formFabric, setFormFabric] = useState('Algodão');
   const [formName, setFormName] = useState('');
   const [formColors, setFormColors] = useState<string[]>([]);
   const [colorInput, setColorInput] = useState('');
@@ -91,7 +98,7 @@ export default function OrdersTab({
     const matchesSearch = 
       o.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
       o.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.personalizedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (o.personalizedName && o.personalizedName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       String(o.id).includes(searchTerm);
     
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
@@ -101,11 +108,7 @@ export default function OrdersTab({
 
   const handleOpenNewOrder = () => {
     setEditingOrder(null);
-    if (clients.length === 0) {
-      alert('Por favor, cadastre pelo menos um cliente antes de criar um pedido.');
-      return;
-    }
-    setFormClientId(clients[0].id);
+    setFormClientId(clients.length > 0 ? clients[0].id : '');
     setFormProduct('');
     setFormQuantity(1);
     setFormSize('13x18 cm');
@@ -116,38 +119,57 @@ export default function OrdersTab({
     setFormTotal(50);
     setFormDeposit(25);
     setFormPayMethod('Pix');
-    setFormDate(todayDate);
+    setFormDate(todayDate || new Date().toISOString().split('T')[0]);
+    
     // 7 days default
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + 7);
     setFormDeliveryDate(futureDate.toISOString().split('T')[0]);
     setFormNotes('');
-    setFormImage('https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&q=80&w=400');
+    setFormImage('');
     setFormStatus('approved');
     setFormError('');
     setIsFormOpen(true);
   };
 
-  const handleOpenEditOrder = (order: Order) => {
+  const handleOpenEditOrder = (order: Order, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setEditingOrder(order);
     setFormClientId(order.clientId);
     setFormProduct(order.product);
-    setFormQuantity(order.quantity);
-    setFormSize(order.embroiderySize);
-    setFormFabric(order.fabricType);
-    setFormName(order.personalizedName);
+    setFormQuantity(order.quantity || 1);
+    setFormSize(order.embroiderySize || '13x18 cm');
+    setFormFabric(order.fabricType || 'Algodão');
+    setFormName(order.personalizedName || '');
     setFormColors(order.colorsUsed || []);
     setColorInput('');
-    setFormTotal(order.totalValue);
-    setFormDeposit(order.depositPaid);
-    setFormPayMethod(order.paymentMethod);
-    setFormDate(order.date);
-    setFormDeliveryDate(order.deliveryDate);
-    setFormNotes(order.observations);
+    setFormTotal(order.totalValue || 0);
+    setFormDeposit(order.depositPaid || 0);
+    setFormPayMethod(order.paymentMethod || 'Pix');
+    setFormDate(order.date || todayDate);
+    setFormDeliveryDate(order.deliveryDate || '');
+    setFormNotes(order.observations || '');
     setFormImage(order.photoUrl || '');
-    setFormStatus(order.status);
+    setFormStatus(order.status || 'approved');
     setFormError('');
     setIsFormOpen(true);
+  };
+
+  const handlePromptDelete = (order: Order, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setOrderToDelete(order);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!orderToDelete) return;
+    const idToDelete = orderToDelete.id;
+    onDeleteOrder(idToDelete);
+    
+    if (selectedOrder?.id === idToDelete) {
+      const remaining = orders.filter(o => o.id !== idToDelete);
+      setSelectedOrder(remaining.length > 0 ? remaining[0] : null);
+    }
+    setOrderToDelete(null);
   };
 
   const handleAddColor = () => {
@@ -177,29 +199,31 @@ export default function OrdersTab({
       return;
     }
 
-    const client = clients.find(c => c.id === formClientId);
-    if (!client) {
-      setFormError('Cliente inválido.');
+    if (!formClientId) {
+      setFormError('Selecione ou cadastre um cliente para associar ao pedido.');
       return;
     }
+
+    const client = clients.find(c => c.id === formClientId);
+    const clientName = client ? client.name : 'Cliente Avulso';
 
     const orderPayload: Order = {
       id: editingOrder ? editingOrder.id : (orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 1001),
       clientId: formClientId,
-      clientName: client.name,
-      date: formDate,
+      clientName: clientName,
+      date: formDate || todayDate,
       deliveryDate: formDeliveryDate,
       status: formStatus,
       product: formProduct,
-      quantity: formQuantity,
+      quantity: Number(formQuantity) || 1,
       embroiderySize: formSize,
       fabricType: formFabric,
       personalizedName: formName,
       colorsUsed: formColors,
-      totalValue: Number(formTotal),
+      totalValue: Number(formTotal) || 0,
       paymentMethod: formPayMethod,
-      depositPaid: Number(formDeposit),
-      remainingValue: Number(formTotal) - Number(formDeposit),
+      depositPaid: Number(formDeposit) || 0,
+      remainingValue: (Number(formTotal) || 0) - (Number(formDeposit) || 0),
       observations: formNotes,
       photoUrl: formImage || 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=400'
     };
@@ -236,13 +260,6 @@ export default function OrdersTab({
     setSelectedOrder(updated);
   };
 
-  const handleDelete = (orderId: number) => {
-    if (confirm(`Tem certeza que deseja remover o Pedido #${orderId}? Esta operação não pode ser desfeita.`)) {
-      onDeleteOrder(orderId);
-      setSelectedOrder(null);
-    }
-  };
-
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
@@ -261,7 +278,7 @@ export default function OrdersTab({
     const statusTextPT = statusConfig[order.status]?.label || order.status;
     const remainingToPay = order.totalValue - order.depositPaid;
     
-    let baseMsg = `Olá, ${greetingName}! 😄 Aqui é do Ateliê de Bordados. Passando para atualizar as informações do seu pedido *#${order.id}* (%F0%9F%AA%A1):\n\n`;
+    let baseMsg = `Olá, ${greetingName}! 😄 Aqui é da Andreia Bordados. Passando para atualizar as informações do seu pedido *#${order.id}* (%F0%9F%AA%A1):\n\n`;
     baseMsg += `*Produto:* ${order.product}\n`;
     baseMsg += `*Nome customizado:* ${order.personalizedName || 'Nenhum'}\n`;
     baseMsg += `*Status atual:* _${statusTextPT}_\n`;
@@ -296,12 +313,16 @@ export default function OrdersTab({
         
         {/* Header List */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-50 mb-4 h-12">
-          <h3 className="text-base font-bold text-gray-800">Meus Pedidos ({filteredOrders.length})</h3>
+          <div>
+            <h3 className="text-base font-bold text-gray-800">Meus Pedidos ({filteredOrders.length})</h3>
+            <span className="text-3xs text-gray-400">Fila de confecção e entregas</span>
+          </div>
           <button 
+            id="btn_novo_pedido"
             onClick={handleOpenNewOrder}
-            className="p-1 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer font-sans"
+            className="p-2 px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer font-sans shadow-xs active:scale-95"
           >
-            <Plus className="h-3.5 w-3.5" /> Novo
+            <Plus className="h-4 w-4" /> Novo Pedido
           </button>
         </div>
 
@@ -333,9 +354,9 @@ export default function OrdersTab({
                 <button
                   key={cat.id}
                   onClick={() => setStatusFilter(cat.id)}
-                  className={`px-2 py-1 text-2xs font-semibold rounded-md transition cursor-pointer ${
+                  className={`px-2.5 py-1 text-2xs font-semibold rounded-md transition cursor-pointer ${
                     active 
-                      ? 'bg-indigo-600 text-white' 
+                      ? 'bg-indigo-600 text-white shadow-2xs' 
                       : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                   }`}
                 >
@@ -362,31 +383,56 @@ export default function OrdersTab({
                 <div 
                   key={order.id}
                   onClick={() => setSelectedOrder(order)}
-                  className={`p-3 rounded-xl border text-left cursor-pointer transition flex flex-col justify-between ${
+                  className={`p-3 rounded-xl border text-left cursor-pointer transition flex flex-col justify-between group ${
                     active 
-                      ? 'border-indigo-600 bg-indigo-50/20' 
+                      ? 'border-indigo-600 bg-indigo-50/25 shadow-2xs' 
                       : isLate 
-                        ? 'border-rose-100 bg-rose-50/20' 
-                        : 'border-gray-100 bg-white hover:border-indigo-150 hover:bg-gray-50/50'
+                        ? 'border-rose-200 bg-rose-50/20' 
+                        : 'border-gray-100 bg-white hover:border-indigo-200 hover:bg-gray-50/50'
                   }`}
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-bold text-indigo-700">#{order.id}</span>
-                        <h4 className="text-xs font-semibold text-gray-800 truncate" style={{maxWidth: '150px'}}>{order.product}</h4>
+                        <span className="text-xs font-bold font-mono text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm">#{order.id}</span>
+                        <h4 className="text-xs font-semibold text-gray-800 truncate" style={{maxWidth: '140px'}}>{order.product}</h4>
                       </div>
                       <p className="text-2xs text-gray-500 mt-1 flex items-center gap-1">
                         <User className="h-3 w-3 text-gray-400 shrink-0" /> {order.clientName}
                       </p>
+                      {order.personalizedName && (
+                        <p className="text-3xs font-mono text-rose-700 font-bold mt-0.5 truncate">
+                          "{order.personalizedName}"
+                        </p>
+                      )}
                     </div>
 
-                    <span className={`px-2 py-0.5 rounded-full text-3xs font-semibold shrink-0 border ${config.bg} ${config.text}`}>
-                      {config.label}
-                    </span>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-3xs font-semibold border ${config.bg} ${config.text}`}>
+                        {config.label}
+                      </span>
+                      
+                      {/* Quick Edit/Delete buttons on hover */}
+                      <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition">
+                        <button
+                          onClick={(e) => handleOpenEditOrder(order, e)}
+                          title="Editar este pedido"
+                          className="p-1 hover:bg-indigo-100 hover:text-indigo-700 text-gray-400 rounded-md transition cursor-pointer"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => handlePromptDelete(order, e)}
+                          title="Excluir este pedido"
+                          className="p-1 hover:bg-rose-100 hover:text-rose-600 text-gray-400 rounded-md transition cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-50 text-2xs text-gray-500">
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100/70 text-2xs text-gray-500">
                     <span className={`font-medium ${isLate ? 'text-rose-600 font-bold' : ''}`}>
                       Fim: {formatDatePT(order.deliveryDate)} {isLate ? '(Atrasado)' : ''}
                     </span>
@@ -399,281 +445,9 @@ export default function OrdersTab({
         </div>
       </div>
 
-      {/* Coluna Direita: Detalhe do Pedido ou Formulário */}
+      {/* Coluna Direita: Detalhe do Pedido */}
       <div className="lg:col-span-2 flex flex-col h-[750px]" id="orders_workspace">
-        
-        {isFormOpen ? (
-          /* FORMULÁRIO DE PEDIDO (NOVO / EDITAR) */
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-xs flex flex-col h-full overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-50 mb-4">
-              <h3 className="text-base font-bold text-gray-800">
-                {editingOrder ? `Editar Pedido #${editingOrder.id}` : 'Lançar Novo Pedido de Bordado'}
-              </h3>
-              <button 
-                onClick={() => setIsFormOpen(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleFormSubmit} className="space-y-4 text-left">
-              {formError && (
-                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-700 text-xs">
-                  {formError}
-                </div>
-              )}
-
-              {/* Cliente Selector */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">Cliente Associado *</label>
-                <select 
-                  value={formClientId}
-                  onChange={(e) => setFormClientId(e.target.value)}
-                  className="w-full p-2.5 text-sm border border-gray-200 rounded-lg bg-white"
-                  required
-                >
-                  <option value="" disabled>Selecione um cliente...</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Produto & Quantidade */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Produto solicitado *</label>
-                  <input 
-                    type="text" 
-                    value={formProduct}
-                    onChange={(e) => setFormProduct(e.target.value)}
-                    placeholder="Ex: Toalha de Banho com capuz azul"
-                    className="w-full p-2.5 text-sm border border-gray-200 rounded-lg"
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600 font-sans">Quantidade *</label>
-                  <input 
-                    type="number" 
-                    min={1}
-                    value={formQuantity}
-                    onChange={(e) => setFormQuantity(Number(e.target.value))}
-                    className="w-full p-2.5 text-sm border border-gray-200 rounded-lg"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Tipo de Tecido, Tamanho do bordado & Nome Personalizado */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Tipo de Tecido</label>
-                  <input 
-                    type="text" 
-                    value={formFabric}
-                    onChange={(e) => setFormFabric(e.target.value)}
-                    placeholder="Ex: Piquet, Linho, Felpudo"
-                    className="w-full p-2.5 text-sm border border-gray-200 rounded-lg"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Tamanho do Bordado</label>
-                  <input 
-                    type="text" 
-                    value={formSize}
-                    onChange={(e) => setFormSize(e.target.value)}
-                    placeholder="Ex: 13x18 cm, 10x10 cm"
-                    className="w-full p-2.5 text-sm border border-gray-200 rounded-lg"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Texto/Nome a Bordar</label>
-                  <input 
-                    type="text" 
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="Ex: Arthur / F & M / Logo Clínica"
-                    className="w-full p-2.5 text-sm border border-gray-200 rounded-lg font-mono text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Cores Utilizadas */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">Cores Utilizadas / Tons das Linhas</label>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={colorInput}
-                    onChange={(e) => setColorInput(e.target.value)}
-                    placeholder="Ex: Ouro Luminoso (Ricamare 3020)"
-                    className="flex-1 p-2.5 text-sm border border-gray-200 rounded-lg"
-                  />
-                  <button 
-                    type="button"
-                    onClick={handleAddColor}
-                    className="px-3.5 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold hover:bg-indigo-100 rounded-lg text-xs cursor-pointer"
-                  >
-                    Adicionar
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {formColors.map(c => (
-                    <span key={c} className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 text-slate-800 text-2xs font-semibold rounded-md border border-slate-200">
-                      {c}
-                      <X className="h-3 w-3 hover:text-rose-600 cursor-pointer" onClick={() => handleRemoveColor(c)} />
-                    </span>
-                  ))}
-                  {formColors.length === 0 && <span className="text-3xs text-gray-400">Ainda nenhuma cor de linha vinculada a este pedido.</span>}
-                </div>
-              </div>
-
-              {/* Status do Pedido & Foto de Referência (Simulação) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Url da Imagem de Referência / Arte</label>
-                  <input 
-                    type="text" 
-                    value={formImage}
-                    onChange={(e) => setFormImage(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full p-2.5 text-sm border border-gray-200 rounded-lg text-xs"
-                  />
-                  <span className="text-3xs text-gray-400 block">Insira um link de imagem do pinterest, whatsapp ou imgur</span>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Etapa/Status Inicial do Pedido</label>
-                  <select 
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as OrderStatus)}
-                    className="w-full p-2.5 text-sm border border-gray-200 rounded-lg bg-white"
-                  >
-                    <option value="budget">Orçamento</option>
-                    <option value="approved">Aprovado (Aguardando Fila)</option>
-                    <option value="production">Em Produção (Corte/Montagem)</option>
-                    <option value="embroidery">Na Máquina (Bordando)</option>
-                    <option value="finished">Finalizado (Pronto)</option>
-                    <option value="delivered">Entregue ao Cliente</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Valores & Pagamento */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50/50 border border-slate-100 rounded-xl">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-indigo-950 flex items-center gap-1">
-                    <DollarSign className="h-3.5 w-3.5 text-indigo-600" /> Valor Total (R$) *
-                  </label>
-                  <input 
-                    type="number" 
-                    value={formTotal}
-                    onChange={(e) => setFormTotal(Number(e.target.value))}
-                    className="w-full p-2 text-sm border border-gray-200 rounded-lg bg-white font-bold"
-                    required
-                  />
-                  <div className="flex gap-1 mt-1">
-                    <button type="button" onClick={() => handleApplyQuickPrice(35)} className="px-1.5 py-0.5 bg-white border border-gray-200 hover:border-indigo-400 rounded-sm text-3xs text-gray-600 cursor-pointer">R$35</button>
-                    <button type="button" onClick={() => handleApplyQuickPrice(60)} className="px-1.5 py-0.5 bg-white border border-gray-200 hover:border-indigo-400 rounded-sm text-3xs text-gray-600 cursor-pointer">R$60</button>
-                    <button type="button" onClick={() => handleApplyQuickPrice(120)} className="px-1.5 py-0.5 bg-white border border-gray-200 hover:border-indigo-400 rounded-sm text-3xs text-gray-600 cursor-pointer">R$120</button>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-indigo-950 flex items-center gap-1">
-                    <DollarSign className="h-3.5 w-3.5 text-indigo-600" /> Sinal Pago (R$)
-                  </label>
-                  <input 
-                    type="number" 
-                    value={formDeposit}
-                    onChange={(e) => setFormDeposit(Number(e.target.value))}
-                    className="w-full p-2 text-sm border border-gray-200 rounded-lg bg-white"
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setFormDeposit(formTotal / 2)} 
-                    className="text-3xs text-indigo-600 hover:underline mt-1 cursor-pointer block font-bold"
-                  >
-                    Marcar 50% (Sinal)
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Forma de Pagamento</label>
-                  <select 
-                    value={formPayMethod}
-                    onChange={(e) => setFormPayMethod(e.target.value)}
-                    className="w-full p-2 text-sm border border-gray-200 bg-white rounded-lg"
-                  >
-                    <option value="Pix">Pix</option>
-                    <option value="Cartão de Crédito">Cartão de Crédito</option>
-                    <option value="Cartão de Débito">Cartão de Débito</option>
-                    <option value="Dinheiro">Dinheiro</option>
-                    <option value="Transferência">Transf / Ted</option>
-                  </select>
-                  <span className="text-3xs text-gray-500 font-bold block mt-1.5">
-                    Restante: {formatCurrency(formTotal - formDeposit)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Datas de Pedido & Entrega */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-600">Data do Pedido</label>
-                  <input 
-                    type="date" 
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full p-2.5 text-sm border border-gray-200 rounded-lg"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-indigo-950 flex items-center gap-1">
-                    <Calendar className="h-4 w-4 text-indigo-600" /> Data Limite de Entrega *
-                  </label>
-                  <input 
-                    type="date" 
-                    value={formDeliveryDate}
-                    onChange={(e) => setFormDeliveryDate(e.target.value)}
-                    className="w-full p-2.5 text-sm border border-indigo-200 rounded-lg bg-indigo-50/10 font-bold text-indigo-950"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Observações */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">Observações adicionais do pedido</label>
-                <textarea 
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Se houver monograma específico, fontes, posicionamento no tecido ou linha metálica especial..."
-                  className="w-full p-2.5 text-sm border border-gray-200 rounded-lg resize-none"
-                />
-              </div>
-
-              {/* Botões do Form */}
-              <div className="pt-4 border-t border-gray-50 flex justify-end gap-3">
-                <button 
-                  type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-lg cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg flex items-center gap-1 cursor-pointer"
-                >
-                  <Check className="h-4 w-4" /> Registrar Pedido
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : selectedOrder ? (
+        {selectedOrder ? (
           /* DETALHE DO PEDIDO SELECIONADO */
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-xs flex flex-col h-full overflow-hidden" id="order_details_panel">
             
@@ -689,14 +463,22 @@ export default function OrdersTab({
 
               <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => handleOpenEditOrder(selectedOrder)}
-                  className="px-3 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-extrabold rounded-lg transition flex items-center gap-1 cursor-pointer font-sans"
+                  onClick={() => setIsPrintModalOpen(true)}
+                  className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
+                  title="Imprimir pedido limpo com logo, dados do cliente e valores"
                 >
-                  <Edit2 className="h-3 w-3" /> Editar Pedido
+                  <Printer className="h-3.5 w-3.5" /> Imprimir Pedido
+                </button>
+
+                <button
+                  onClick={() => handleOpenEditOrder(selectedOrder)}
+                  className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs"
+                >
+                  <Edit2 className="h-3.5 w-3.5" /> Editar Pedido
                 </button>
                 
                 <button
-                  onClick={() => handleDelete(selectedOrder.id)}
+                  onClick={() => handlePromptDelete(selectedOrder)}
                   className="p-1.5 text-rose-600 border border-transparent hover:border-rose-200 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                   title="Apagar pedido"
                 >
@@ -722,10 +504,10 @@ export default function OrdersTab({
                         <button
                           key={st}
                           onClick={() => setManualStatus(selectedOrder, st)}
-                          className={`px-2 py-1 text-3xs font-bold rounded-md border transition cursor-pointer ${
+                          className={`px-2.5 py-1 text-3xs font-bold rounded-md border transition cursor-pointer ${
                             isCurrent 
                               ? 'bg-indigo-600 border-indigo-700 text-white shadow-xs' 
-                              : 'bg-white text-gray-500 hover:border-gray-350'
+                              : 'bg-white text-gray-500 hover:border-gray-300'
                           }`}
                         >
                           {config.label}
@@ -839,7 +621,7 @@ export default function OrdersTab({
                   ) : (
                     <div className="border border-dashed border-gray-200 rounded-xl p-8 text-center bg-gray-50/50 flex flex-col items-center">
                       <Camera className="h-8 w-8 text-gray-300 mb-1" />
-                      <span className="text-2xs text-gray-455">Nenhuma foto de referência anexada.</span>
+                      <span className="text-2xs text-gray-400">Nenhuma foto de referência anexada.</span>
                     </div>
                   )}
 
@@ -883,11 +665,576 @@ export default function OrdersTab({
         ) : (
           <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center flex flex-col items-center justify-center h-full text-gray-400 shadow-xs">
             <Layers className="h-16 w-16 text-gray-200 mb-2" />
-            <p className="text-sm">Selecione um pedido na lista de tarefas para verificar seus materiais de produção, cores de agulha e saldo restante de pagamentos.</p>
+            <p className="text-sm font-medium">Nenhum pedido selecionado na lista.</p>
+            <p className="text-xs text-gray-400 mt-1">Selecione um pedido na lateral ou crie um novo pedido para começar.</p>
+            <button
+              onClick={handleOpenNewOrder}
+              className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" /> Criar Novo Pedido
+            </button>
           </div>
         )}
-
       </div>
+
+      {/* MODAL DIALOG: NOVO / EDITAR PEDIDO */}
+      {isFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-left my-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
+                  {editingOrder ? <Edit2 className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-800">
+                    {editingOrder ? `Editar Pedido #${editingOrder.id}` : 'Lançar Novo Pedido de Bordado'}
+                  </h3>
+                  <p className="text-2xs text-gray-500">
+                    {editingOrder ? 'Altere as informações do pedido e salve as modificações' : 'Preencha os detalhes do produto e cliente para a fila de produção'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsFormOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body Form */}
+            <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
+              {formError && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium">
+                  {formError}
+                </div>
+              )}
+
+              {/* Cliente Selector */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-gray-700">Cliente Associado *</label>
+                  {clients.length === 0 && (
+                    <span className="text-3xs text-amber-600 font-bold">Nenhum cliente cadastrado ainda</span>
+                  )}
+                </div>
+                {clients.length > 0 ? (
+                  <select 
+                    value={formClientId}
+                    onChange={(e) => setFormClientId(e.target.value)}
+                    className="w-full p-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:border-indigo-400 focus:outline-hidden"
+                    required
+                  >
+                    <option value="" disabled>Selecione um cliente...</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.phone || 'Sem fone'})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
+                    Cadastre um cliente na aba <strong>Clientes</strong> ou utilizaremos um registro automático.
+                  </div>
+                )}
+              </div>
+
+              {/* Produto & Quantidade */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Produto solicitado *</label>
+                  <input 
+                    type="text" 
+                    value={formProduct}
+                    onChange={(e) => setFormProduct(e.target.value)}
+                    placeholder="Ex: Toalha de Banho com capuz azul"
+                    className="w-full p-2.5 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:outline-hidden"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700 font-sans">Quantidade *</label>
+                  <input 
+                    type="number" 
+                    min={1}
+                    value={formQuantity}
+                    onChange={(e) => setFormQuantity(Number(e.target.value))}
+                    className="w-full p-2.5 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:outline-hidden"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Tipo de Tecido, Tamanho do bordado & Nome Personalizado */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Tipo de Tecido</label>
+                  <input 
+                    type="text" 
+                    value={formFabric}
+                    onChange={(e) => setFormFabric(e.target.value)}
+                    placeholder="Ex: Piquet, Linho, Felpudo"
+                    className="w-full p-2.5 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:outline-hidden"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Tamanho do Bordado</label>
+                  <input 
+                    type="text" 
+                    value={formSize}
+                    onChange={(e) => setFormSize(e.target.value)}
+                    placeholder="Ex: 13x18 cm, 10x10 cm"
+                    className="w-full p-2.5 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:outline-hidden"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Texto / Monograma</label>
+                  <input 
+                    type="text" 
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Ex: Arthur / Família Silva"
+                    className="w-full p-2.5 text-sm border border-gray-200 rounded-xl font-mono text-xs focus:border-indigo-400 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Cores Utilizadas */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700">Cores / Tons das Linhas do Bordado</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={colorInput}
+                    onChange={(e) => setColorInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddColor();
+                      }
+                    }}
+                    placeholder="Ex: Ouro Luminoso (Ricamare 3020) e pressione enter"
+                    className="flex-1 p-2.5 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:outline-hidden"
+                  />
+                  <button 
+                    type="button"
+                    onClick={handleAddColor}
+                    className="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold hover:bg-indigo-100 rounded-xl text-xs cursor-pointer"
+                  >
+                    Adicionar
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {formColors.map(c => (
+                    <span key={c} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-800 text-2xs font-semibold rounded-lg border border-slate-200">
+                      {c}
+                      <X className="h-3 w-3 hover:text-rose-600 cursor-pointer" onClick={() => handleRemoveColor(c)} />
+                    </span>
+                  ))}
+                  {formColors.length === 0 && <span className="text-3xs text-gray-400">Nenhuma cor de linha adicionada.</span>}
+                </div>
+              </div>
+
+              {/* Status do Pedido & Imagem de Referência */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Status / Etapa do Pedido</label>
+                  <select 
+                    value={formStatus}
+                    onChange={(e) => setFormStatus(e.target.value as OrderStatus)}
+                    className="w-full p-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:border-indigo-400 focus:outline-hidden"
+                  >
+                    <option value="budget">Orçamento</option>
+                    <option value="approved">Aprovado (Aguardando Fila)</option>
+                    <option value="production">Em Preparação/Corte</option>
+                    <option value="embroidery">Na Máquina (Bordando)</option>
+                    <option value="finished">Finalizado (Pronto)</option>
+                    <option value="delivered">Entregue ao Cliente</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">URL Foto / Referência Visual</label>
+                  <input 
+                    type="text" 
+                    value={formImage}
+                    onChange={(e) => setFormImage(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full p-2.5 text-sm border border-gray-200 rounded-xl text-xs focus:border-indigo-400 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Valores & Pagamento */}
+              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                <p className="text-xs font-extrabold text-gray-800 uppercase tracking-wider font-mono">Valores e Condições</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-indigo-950 flex items-center gap-1">
+                      <DollarSign className="h-3.5 w-3.5 text-indigo-600" /> Valor Total (R$) *
+                    </label>
+                    <input 
+                      type="number" 
+                      value={formTotal}
+                      onChange={(e) => setFormTotal(Number(e.target.value))}
+                      className="w-full p-2.5 text-sm border border-gray-300 rounded-xl bg-white font-bold text-indigo-900"
+                      required
+                    />
+                    <div className="flex gap-1 mt-1">
+                      <button type="button" onClick={() => handleApplyQuickPrice(35)} className="px-2 py-0.5 bg-white border border-gray-200 hover:border-indigo-400 rounded-md text-3xs text-gray-600 cursor-pointer">R$35</button>
+                      <button type="button" onClick={() => handleApplyQuickPrice(60)} className="px-2 py-0.5 bg-white border border-gray-200 hover:border-indigo-400 rounded-md text-3xs text-gray-600 cursor-pointer">R$60</button>
+                      <button type="button" onClick={() => handleApplyQuickPrice(120)} className="px-2 py-0.5 bg-white border border-gray-200 hover:border-indigo-400 rounded-md text-3xs text-gray-600 cursor-pointer">R$120</button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-indigo-950 flex items-center gap-1">
+                      <DollarSign className="h-3.5 w-3.5 text-indigo-600" /> Sinal Pago (R$)
+                    </label>
+                    <input 
+                      type="number" 
+                      value={formDeposit}
+                      onChange={(e) => setFormDeposit(Number(e.target.value))}
+                      className="w-full p-2.5 text-sm border border-gray-300 rounded-xl bg-white"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setFormDeposit(formTotal / 2)} 
+                      className="text-3xs text-indigo-600 hover:underline mt-1 cursor-pointer block font-bold"
+                    >
+                      Definir 50% de Sinal
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-700">Forma de Pagamento</label>
+                    <select 
+                      value={formPayMethod}
+                      onChange={(e) => setFormPayMethod(e.target.value)}
+                      className="w-full p-2.5 text-sm border border-gray-300 bg-white rounded-xl"
+                    >
+                      <option value="Pix">Pix</option>
+                      <option value="Cartão de Crédito">Cartão de Crédito</option>
+                      <option value="Cartão de Débito">Cartão de Débito</option>
+                      <option value="Dinheiro">Dinheiro</option>
+                      <option value="Transferência">Transferência / TED</option>
+                    </select>
+                    <span className="text-3xs text-gray-500 font-bold block mt-1">
+                      Restante: {formatCurrency(formTotal - formDeposit)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Datas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Data de Abertura do Pedido</label>
+                  <input 
+                    type="date" 
+                    value={formDate}
+                    onChange={(e) => setFormDate(e.target.value)}
+                    className="w-full p-2.5 text-sm border border-gray-200 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-indigo-950 flex items-center gap-1">
+                    <Calendar className="h-4 w-4 text-indigo-600" /> Data Limite de Entrega *
+                  </label>
+                  <input 
+                    type="date" 
+                    value={formDeliveryDate}
+                    onChange={(e) => setFormDeliveryDate(e.target.value)}
+                    className="w-full p-2.5 text-sm border border-indigo-300 rounded-xl bg-indigo-50/20 font-bold text-indigo-950 focus:border-indigo-500 focus:outline-hidden"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-700">Observações Adicionais do Ateliê</label>
+                <textarea 
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Instruções de bastidor, linha metálica, reforço de entretela..."
+                  className="w-full p-2.5 text-sm border border-gray-200 rounded-xl resize-none focus:border-indigo-400 focus:outline-hidden"
+                />
+              </div>
+
+              {/* Modal Footer Buttons */}
+              <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+                <div>
+                  {editingOrder && (
+                    <button
+                      type="button"
+                      onClick={() => handlePromptDelete(editingOrder)}
+                      className="px-3 py-2 text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-xl transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" /> Excluir Pedido
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex gap-2.5">
+                  <button 
+                    type="button"
+                    onClick={() => setIsFormOpen(false)}
+                    className="px-4 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-semibold rounded-xl cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                  >
+                    <Check className="h-4 w-4" /> {editingOrder ? 'Salvar Alterações' : 'Criar Pedido'}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMAÇÃO DE EXCLUSÃO DE PEDIDO */}
+      {orderToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-6 text-left space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-800">Excluir Pedido #{orderToDelete.id}?</h3>
+                <p className="text-xs text-gray-500">Esta ação removerá o pedido e seu histórico de confecção.</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-gray-50 rounded-xl text-xs space-y-1 border border-gray-100">
+              <p><strong>Produto:</strong> {orderToDelete.product}</p>
+              <p><strong>Cliente:</strong> {orderToDelete.clientName}</p>
+              <p><strong>Valor:</strong> {formatCurrency(orderToDelete.totalValue)}</p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setOrderToDelete(null)}
+                className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl cursor-pointer shadow-xs"
+              >
+                Sim, Excluir Pedido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE FICHA / ORÇAMENTO OFICIAL COM LOGO ANDREIA BORDADOS */}
+      {isPrintModalOpen && selectedOrder && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto animate-fadeIn" id="order_print_sheet_modal">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
+            
+            {/* Modal Topbar Actions (não sai no print) */}
+            <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between gap-3 shrink-0 print:hidden">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-rose-400" />
+                <span className="text-xs font-bold font-sans">Ficha de Produção / Orçamento Oficial #{selectedOrder.id}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    window.print();
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs transition"
+                  title="Imprimir ou Salvar em PDF"
+                >
+                  <Printer className="h-3.5 w-3.5" /> Imprimir / PDF
+                </button>
+                <button
+                  onClick={() => setIsPrintModalOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Folha Oficial com Logo para Impressão */}
+            <div className="p-6 sm:p-8 overflow-y-auto space-y-6 text-slate-800 bg-white printable-sheet" id="printable_order_sheet">
+              
+              {/* Cabeçalho Oficial do Ateliê com a Logo */}
+              <div className="flex items-center justify-between gap-4 pb-5 border-b-2 border-slate-200 print-avoid-break">
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={ANDREIA_LOGO_URL} 
+                    alt="Logo Andreia Bordados Personalizados" 
+                    className="h-20 w-20 sm:h-24 sm:w-24 rounded-full object-cover border-2 border-rose-200 shadow-sm ring-4 ring-rose-50/60 shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="space-y-0.5 text-left">
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 font-sans">
+                      Andreia Bordados
+                    </h1>
+                    <p className="text-xs font-bold text-rose-700 uppercase tracking-wider">
+                      Bordados Personalizados & Confecção
+                    </p>
+                    <p className="text-3xs text-slate-500">
+                      Qualidade premium, pontualidade e acabamento artesanal de excelência.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <span className="inline-block px-3 py-1 bg-slate-100 text-slate-900 font-black text-xs rounded-md border border-slate-300 uppercase font-mono">
+                    {selectedOrder.status === 'budget' ? 'ORÇAMENTO OFICIAL' : 'FICHA DE PEDIDO'}
+                  </span>
+                  <p className="text-sm font-black text-slate-900 font-mono mt-1.5">PEDIDO #{selectedOrder.id}</p>
+                  <p className="text-3xs text-slate-500 font-mono">Data: {selectedOrder.createdAt}</p>
+                  <p className="text-3xs font-bold text-slate-700 font-mono">Previsão: {selectedOrder.deadline}</p>
+                </div>
+              </div>
+
+              {/* Informações do Cliente */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs print-card print-avoid-break">
+                <div>
+                  <span className="text-3xs font-bold text-slate-400 uppercase tracking-wider block">Dados do Cliente</span>
+                  <p className="mt-1 font-bold text-slate-900 text-sm">{selectedOrder.clientName}</p>
+                  {currentOrderClient && (
+                    <div className="text-2xs text-slate-600 mt-1 space-y-0.5">
+                      <p className="font-semibold">Telefone/WhatsApp: {currentOrderClient.phone}</p>
+                      {currentOrderClient.email && <p>E-mail: {currentOrderClient.email}</p>}
+                      {currentOrderClient.address && <p>Endereço/Cidade: {currentOrderClient.address}</p>}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <span className="text-3xs font-bold text-slate-400 uppercase tracking-wider block">Status & Responsável</span>
+                  <p className="mt-1 font-bold text-slate-900 uppercase text-xs">
+                    {statusConfig[selectedOrder.status]?.label || selectedOrder.status}
+                  </p>
+                  <p className="text-3xs text-slate-500 mt-1">Ateliê: Andreia Bordados</p>
+                  <p className="text-3xs text-slate-500">Bordados Computadorizados de Alta Definição</p>
+                </div>
+              </div>
+
+              {/* Detalhes de Produção do Bordado */}
+              <div className="space-y-3 print-avoid-break">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-rose-600" /> Especificações do Bordado
+                </h3>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200 print-card">
+                  <div>
+                    <span className="text-3xs font-bold text-slate-500 uppercase block">Produto / Peça</span>
+                    <span className="font-bold text-slate-900 mt-0.5 block">{selectedOrder.product}</span>
+                  </div>
+                  <div>
+                    <span className="text-3xs font-bold text-slate-500 uppercase block">Quantidade</span>
+                    <span className="font-bold text-slate-900 mt-0.5 block">{selectedOrder.quantity} unidade(s)</span>
+                  </div>
+                  <div>
+                    <span className="text-3xs font-bold text-slate-500 uppercase block">Tamanho da Matriz</span>
+                    <span className="font-bold text-slate-900 mt-0.5 block">{selectedOrder.embroiderySize || 'Padrão'}</span>
+                  </div>
+                  <div>
+                    <span className="text-3xs font-bold text-slate-500 uppercase block">Tecido Base</span>
+                    <span className="font-bold text-slate-900 mt-0.5 block">{selectedOrder.fabricType || 'Padrão'}</span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="text-3xs font-bold text-slate-500 uppercase block">Nome / Texto Personalizado</span>
+                    <span className="font-black text-rose-800 font-mono text-sm mt-0.5 block">
+                      {selectedOrder.personalizedName || 'Sem personalização nominal'}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedOrder.colorsUsed && selectedOrder.colorsUsed.length > 0 && (
+                  <div className="text-xs print-card p-3 bg-white border border-slate-200 rounded-lg">
+                    <span className="text-3xs font-bold text-slate-500 uppercase block mb-1">Cores e Linhas Programadas:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedOrder.colorsUsed.map((color, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-md text-3xs font-bold text-slate-800">
+                          {color}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedOrder.observations && (
+                  <div className="text-xs p-3 bg-slate-50 rounded-lg italic text-slate-700 border border-slate-200 print-card">
+                    <span className="font-bold not-italic text-slate-900 block text-3xs uppercase mb-0.5">Observações Adicionais:</span>
+                    "{selectedOrder.observations}"
+                  </div>
+                )}
+              </div>
+
+              {/* Quadro Financeiro */}
+              <div className="p-4 bg-slate-50 rounded-xl border-2 border-slate-300 grid grid-cols-3 gap-3 text-center print-card print-avoid-break">
+                <div>
+                  <span className="text-3xs font-bold text-slate-500 uppercase block">Valor Total</span>
+                  <span className="text-base sm:text-xl font-black text-slate-900 font-mono mt-0.5 block">
+                    {formatCurrency(selectedOrder.totalValue)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-3xs font-bold text-slate-500 uppercase block">Sinal / Entrada</span>
+                  <span className="text-base sm:text-xl font-bold text-emerald-800 font-mono mt-0.5 block">
+                    {formatCurrency(selectedOrder.depositPaid)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-3xs font-bold text-slate-500 uppercase block">Saldo a Receber</span>
+                  <span className="text-base sm:text-xl font-black text-rose-800 font-mono mt-0.5 block">
+                    {formatCurrency(selectedOrder.remainingValue)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Assinatura / Aceite do Cliente */}
+              <div className="pt-6 border-t-2 border-slate-200 text-3xs text-slate-600 grid grid-cols-2 gap-8 items-end print-avoid-break">
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-900">Andreia Bordados Personalizados</p>
+                  <p>Agradecemos a preferência e a confiança em nosso trabalho!</p>
+                  <p className="text-slate-400">Garantia de acabamento artesanal de alto padrão.</p>
+                </div>
+                <div className="text-center">
+                  <div className="border-b border-slate-500 pb-1 mb-1"></div>
+                  <p className="font-bold text-slate-800">Assinatura / Aceite do Cliente</p>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0 print:hidden">
+              <button
+                type="button"
+                onClick={() => setIsPrintModalOpen(false)}
+                className="px-4 py-2 border border-slate-200 hover:bg-white text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs transition"
+              >
+                <Printer className="h-3.5 w-3.5" /> Imprimir Documento
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -16,8 +16,12 @@ import {
   X,
   Phone,
   Clock,
-  Heart
+  Heart,
+  Cloud,
+  CheckCircle,
+  Database
 } from 'lucide-react';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 // Types
 import { Client, Order, Expense, InventoryItem, ArtMatrix } from './types';
@@ -31,6 +35,23 @@ import {
   defaultMatrices 
 } from './defaultData';
 
+// Firestore DB Service
+import {
+  db,
+  COLLECTIONS,
+  seedInitialDataIfEmpty,
+  saveClient,
+  removeClient,
+  saveOrder,
+  removeOrder,
+  saveExpense,
+  removeExpense,
+  saveInventoryItem,
+  removeInventoryItem,
+  saveMatrix,
+  removeMatrix
+} from './services/firebaseService';
+
 // Tab Components
 import DashboardTab from './components/DashboardTab';
 import ClientsTab from './components/ClientsTab';
@@ -42,10 +63,12 @@ import AgendaTab from './components/AgendaTab';
 import GalleryTab from './components/GalleryTab';
 import ReportsTab from './components/ReportsTab';
 
+import { ANDREIA_LOGO_URL } from './assets/logo';
+
 export default function App() {
   const todayDate = "2026-05-20"; // Standard simulated local time context from metadata
 
-  // --- LOCAL PERSISTENCE STORAGE CONTROLLERS ---
+  // --- PERSISTÊNCIA EM BANCO DE DADOS FIRESTORE & LOCAL BACKUP ---
   const [clients, setClients] = useState<Client[]>(() => {
     const saved = localStorage.getItem('atelie_clients');
     return saved ? JSON.parse(saved) : defaultClients;
@@ -71,81 +94,211 @@ export default function App() {
     return saved ? JSON.parse(saved) : defaultMatrices;
   });
 
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedOrderLink, setSelectedOrderLink] = useState<Order | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Sync state to LocalStorage
+  // Inicialização e sincronização em tempo real com Firestore
   useEffect(() => {
-    localStorage.setItem('atelie_clients', JSON.stringify(clients));
-  }, [clients]);
+    // 1. Inicializa o banco se estiver vazio
+    seedInitialDataIfEmpty();
 
-  useEffect(() => {
-    localStorage.setItem('atelie_orders', JSON.stringify(orders));
-  }, [orders]);
+    // 2. Assinantes em tempo real (Realtime Listeners)
+    const unsubClients = onSnapshot(collection(db, COLLECTIONS.CLIENTS), (snapshot) => {
+      if (!snapshot.empty) {
+        const list = snapshot.docs.map(doc => doc.data() as Client);
+        setClients(list);
+        localStorage.setItem('atelie_clients', JSON.stringify(list));
+      }
+      setIsCloudSynced(true);
+    }, (err) => {
+      console.error('Erro na sincronização de clientes:', err);
+    });
 
-  useEffect(() => {
-    localStorage.setItem('atelie_expenses', JSON.stringify(expenses));
-  }, [expenses]);
+    const unsubOrders = onSnapshot(collection(db, COLLECTIONS.ORDERS), (snapshot) => {
+      if (!snapshot.empty) {
+        const list = snapshot.docs.map(doc => doc.data() as Order);
+        setOrders(list);
+        localStorage.setItem('atelie_orders', JSON.stringify(list));
+      }
+      setIsCloudSynced(true);
+    }, (err) => {
+      console.error('Erro na sincronização de pedidos:', err);
+    });
 
-  useEffect(() => {
-    localStorage.setItem('atelie_inventory', JSON.stringify(inventory));
-  }, [inventory]);
+    const unsubExpenses = onSnapshot(collection(db, COLLECTIONS.EXPENSES), (snapshot) => {
+      if (!snapshot.empty) {
+        const list = snapshot.docs.map(doc => doc.data() as Expense);
+        setExpenses(list);
+        localStorage.setItem('atelie_expenses', JSON.stringify(list));
+      }
+      setIsCloudSynced(true);
+    }, (err) => {
+      console.error('Erro na sincronização de despesas:', err);
+    });
 
-  useEffect(() => {
-    localStorage.setItem('atelie_matrices', JSON.stringify(matrices));
-  }, [matrices]);
+    const unsubInventory = onSnapshot(collection(db, COLLECTIONS.INVENTORY), (snapshot) => {
+      if (!snapshot.empty) {
+        const list = snapshot.docs.map(doc => doc.data() as InventoryItem);
+        setInventory(list);
+        localStorage.setItem('atelie_inventory', JSON.stringify(list));
+      }
+      setIsCloudSynced(true);
+    }, (err) => {
+      console.error('Erro na sincronização de estoque:', err);
+    });
 
-  // --- HANDLERS CONTROLLERS ---
-  const handleAddClient = (client: Client) => {
-    setClients([client, ...clients]);
-  };
+    const unsubMatrices = onSnapshot(collection(db, COLLECTIONS.MATRICES), (snapshot) => {
+      if (!snapshot.empty) {
+        const list = snapshot.docs.map(doc => doc.data() as ArtMatrix);
+        setMatrices(list);
+        localStorage.setItem('atelie_matrices', JSON.stringify(list));
+      }
+      setIsCloudSynced(true);
+    }, (err) => {
+      console.error('Erro na sincronização de matrizes:', err);
+    });
 
-  const handleUpdateClient = (updated: Client) => {
-    setClients(clients.map(c => c.id === updated.id ? updated : c));
-  };
+    return () => {
+      unsubClients();
+      unsubOrders();
+      unsubExpenses();
+      unsubInventory();
+      unsubMatrices();
+    };
+  }, []);
 
-  const handleAddOrder = (order: Order) => {
-    setOrders([order, ...orders]);
-  };
-
-  const handleUpdateOrder = (updatedOrder: Order) => {
-    setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-  };
-
-  const handleDeleteOrder = (id: number) => {
-    setOrders(orders.filter(o => o.id !== id));
-  };
-
-  const handleAddExpense = (expense: Expense) => {
-    setExpenses([expense, ...expenses]);
-  };
-
-  const handleDeleteExpense = (id: string) => {
-    if (confirm('Deseja realmente remover esta despesa lançada?')) {
-      setExpenses(expenses.filter(e => e.id !== id));
+  // --- HANDLERS COM GRAVAÇÃO DIRETA NO BANCO DE DADOS ---
+  const handleAddClient = async (client: Client) => {
+    setIsCloudSynced(false);
+    setClients(prev => [client, ...prev]);
+    try {
+      await saveClient(client);
+      setIsCloudSynced(true);
+    } catch (e) {
+      console.error('Erro ao salvar cliente no banco:', e);
     }
   };
 
-  const handleAddStockItem = (item: InventoryItem) => {
-    setInventory([item, ...inventory]);
+  const handleUpdateClient = async (updated: Client) => {
+    setIsCloudSynced(false);
+    setClients(prev => prev.map(c => c.id === updated.id ? updated : c));
+    try {
+      await saveClient(updated);
+      setIsCloudSynced(true);
+    } catch (e) {
+      console.error('Erro ao atualizar cliente no banco:', e);
+    }
   };
 
-  const handleUpdateStockQty = (id: string, newQty: number) => {
-    setInventory(inventory.map(item => {
-      if (item.id === id) {
-        return {
-          ...item,
-          quantity: newQty,
-          lastUpdated: todayDate
-        };
+  const handleDeleteClient = async (id: string) => {
+    setIsCloudSynced(false);
+    setClients(prev => prev.filter(c => c.id !== id));
+    try {
+      await removeClient(id);
+      setIsCloudSynced(true);
+    } catch (e) {
+      console.error('Erro ao remover cliente no banco:', e);
+    }
+  };
+
+  const handleAddOrder = async (order: Order) => {
+    setIsCloudSynced(false);
+    setOrders(prev => [order, ...prev]);
+    try {
+      await saveOrder(order);
+      setIsCloudSynced(true);
+    } catch (e) {
+      console.error('Erro ao salvar pedido no banco:', e);
+    }
+  };
+
+  const handleUpdateOrder = async (updatedOrder: Order) => {
+    setIsCloudSynced(false);
+    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+    try {
+      await saveOrder(updatedOrder);
+      setIsCloudSynced(true);
+    } catch (e) {
+      console.error('Erro ao atualizar pedido no banco:', e);
+    }
+  };
+
+  const handleDeleteOrder = async (id: number) => {
+    setIsCloudSynced(false);
+    setOrders(prev => prev.filter(o => o.id !== id));
+    try {
+      await removeOrder(id);
+      setIsCloudSynced(true);
+    } catch (e) {
+      console.error('Erro ao excluir pedido no banco:', e);
+    }
+  };
+
+  const handleAddExpense = async (expense: Expense) => {
+    setIsCloudSynced(false);
+    setExpenses(prev => [expense, ...prev]);
+    try {
+      await saveExpense(expense);
+      setIsCloudSynced(true);
+    } catch (e) {
+      console.error('Erro ao salvar despesa no banco:', e);
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (confirm('Deseja realmente remover esta despesa lançada?')) {
+      setIsCloudSynced(false);
+      setExpenses(prev => prev.filter(e => e.id !== id));
+      try {
+        await removeExpense(id);
+        setIsCloudSynced(true);
+      } catch (e) {
+        console.error('Erro ao excluir despesa no banco:', e);
       }
-      return item;
-    }));
+    }
   };
 
-  const handleAddMatrix = (matrix: ArtMatrix) => {
-    setMatrices([matrix, ...matrices]);
+  const handleAddStockItem = async (item: InventoryItem) => {
+    setIsCloudSynced(false);
+    setInventory(prev => [item, ...prev]);
+    try {
+      await saveInventoryItem(item);
+      setIsCloudSynced(true);
+    } catch (e) {
+      console.error('Erro ao adicionar item de estoque no banco:', e);
+    }
+  };
+
+  const handleUpdateStockQty = async (id: string, newQty: number) => {
+    setIsCloudSynced(false);
+    const existing = inventory.find(item => item.id === id);
+    if (existing) {
+      const updatedItem = {
+        ...existing,
+        quantity: newQty,
+        lastUpdated: todayDate
+      };
+      setInventory(prev => prev.map(item => item.id === id ? updatedItem : item));
+      try {
+        await saveInventoryItem(updatedItem);
+        setIsCloudSynced(true);
+      } catch (e) {
+        console.error('Erro ao atualizar quantidade no estoque:', e);
+      }
+    }
+  };
+
+  const handleAddMatrix = async (matrix: ArtMatrix) => {
+    setIsCloudSynced(false);
+    setMatrices(prev => [matrix, ...prev]);
+    try {
+      await saveMatrix(matrix);
+      setIsCloudSynced(true);
+    } catch (e) {
+      console.error('Erro ao salvar matriz no banco:', e);
+    }
   };
 
   // Helper trigger to focus from dashboard list to order details sheet
@@ -171,27 +324,32 @@ export default function App() {
     { id: 'reports', label: 'Relatórios', icon: BarChart },
   ];
 
-  const activeTabTitle = navigationTabs.find(t => t.id === activeTab)?.label || 'Ateliê de Bordados';
+  const activeTabTitle = navigationTabs.find(t => t.id === activeTab)?.label || 'Andreia Bordados';
 
   return (
-    <div className="flex bg-[#0f172a] min-h-screen text-slate-200 font-sans" id="atelie_root">
+    <div className="flex bg-slate-50 min-h-screen text-slate-800 font-sans" id="atelie_root">
       
-      {/* 1. SIDEBAR DE NAVIGACAO - COMPUTADOR */}
-      <aside className="hidden lg:flex flex-col w-64 bg-[#1e293b] border-r border-slate-700 text-white shrink-0 sticky top-0 h-screen select-none" id="desktop_sidebar">
+      {/* 1. SIDEBAR DE NAVEGAÇÃO - COMPUTADOR */}
+      <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 text-slate-700 shrink-0 sticky top-0 h-screen select-none shadow-xs" id="desktop_sidebar">
         
         {/* Logo Brand */}
-        <div className="p-5 border-b border-slate-700 flex items-center gap-2.5">
-          <div className="p-1 px-2.5 bg-indigo-650 bg-indigo-600 rounded-lg flex items-center justify-center font-extrabold text-white tracking-wider text-sm">
-            🧶 M
+        <div className="p-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="relative shrink-0">
+            <img 
+              src={ANDREIA_LOGO_URL} 
+              alt="Andreia Bordados" 
+              className="h-11 w-11 rounded-full object-cover border-2 border-rose-100 shadow-xs ring-2 ring-indigo-50"
+              referrerPolicy="no-referrer"
+            />
           </div>
-          <div className="text-left leading-tight">
-            <h1 className="text-sm font-black tracking-wide text-white">BordadoPro</h1>
-            <span className="text-3xs font-semibold text-slate-400">Ambiente de Operações</span>
+          <div className="text-left leading-tight min-w-0">
+            <h1 className="text-sm font-black tracking-tight text-slate-900 truncate">Andreia Bordados</h1>
+            <span className="text-3xs font-semibold text-rose-700 block">Bordados Personalizados</span>
           </div>
         </div>
 
         {/* Links do Menu */}
-        <nav className="flex-1 p-3.5 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 p-3.5 space-y-1 overflow-y-auto">
           {navigationTabs.map(tab => {
             const IconComponent = tab.icon;
             const active = activeTab === tab.id;
@@ -200,13 +358,13 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition duration-200 cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition duration-150 cursor-pointer ${
                   active 
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-indigo-50 text-indigo-700 shadow-xs border border-indigo-100/80' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
-                <IconComponent className={`h-4.5 w-4.5 ${active ? 'text-white' : 'text-slate-400'}`} />
+                <IconComponent className={`h-4.5 w-4.5 ${active ? 'text-indigo-600' : 'text-slate-400'}`} />
                 {tab.label}
               </button>
             );
@@ -214,11 +372,18 @@ export default function App() {
         </nav>
 
         {/* Rodapé do Ateliê */}
-        <div className="p-4 border-t border-slate-800 text-center text-4xs text-slate-500 space-y-1">
-          <p className="font-bold flex items-center justify-center gap-1">
-            <Heart className="h-3 w-3 text-indigo-500 fill-indigo-500" /> BordadoGestão v2.5
+        <div className="p-4 border-t border-slate-100 text-center text-4xs text-slate-400 space-y-2 bg-slate-50/50">
+          <div className="flex items-center justify-center gap-1.5 text-3xs font-bold text-slate-600">
+            <Database className="h-3.5 w-3.5 text-indigo-600" />
+            <span>Banco de Dados Ativo</span>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 text-4xs text-emerald-600 font-semibold">
+            <Cloud className="h-3.5 w-3.5 text-emerald-500" />
+            <span>Nuvem Firestore Conectada</span>
+          </div>
+          <p className="font-bold flex items-center justify-center gap-1 text-slate-500 pt-1">
+            <Heart className="h-3 w-3 text-indigo-500 fill-indigo-500" /> Andreia Bordados v2.5
           </p>
-          <p>Operando em celular e computador</p>
         </div>
       </aside>
 
@@ -226,32 +391,32 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0" id="main_working_canvas">
         
         {/* TOPBAR HEADER */}
-        <header className="bg-[#1e293b]/50 backdrop-blur-md border-b border-slate-700 h-16 px-4 flex items-center justify-between sticky top-0 z-40 text-white" id="topbar_header">
+        <header className="bg-white/90 backdrop-blur-md border-b border-slate-200/80 h-16 px-4 flex items-center justify-between sticky top-0 z-40 text-slate-800 shadow-xs" id="topbar_header">
           
           <div className="flex items-center gap-2">
             {/* Gatilho Menu Mobile */}
             <button 
               onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden p-2 text-slate-300 hover:bg-slate-800 rounded-xl cursor-pointer"
+              className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
             >
               <Menu className="h-5 w-5" />
             </button>
             
-            <h2 className="text-sm font-black text-white font-sans tracking-tight">
+            <h2 className="text-sm font-black text-slate-900 font-sans tracking-tight">
               {activeTabTitle}
             </h2>
           </div>
 
-          {/* Data Simulação & Ateliê Status */}
-          <div className="flex items-center gap-4 text-xs font-sans">
-            <div className="hidden sm:flex items-center gap-2 text-slate-300 bg-slate-800 p-1.5 px-3 rounded-lg border border-slate-700 font-mono">
-              <Clock className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Data de Referência: 20/05/2026</span>
+          {/* Status do Banco & Ateliê */}
+          <div className="flex items-center gap-2.5 sm:gap-3 text-xs font-sans">
+            <div className="hidden sm:flex items-center gap-1.5 text-slate-700 bg-slate-100/90 py-1 px-2.5 rounded-lg border border-slate-200 text-3xs font-semibold">
+              <Database className="h-3.5 w-3.5 text-indigo-600" />
+              <span>Nuvem Conectada</span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-2xs font-extrabold text-indigo-300 bg-indigo-950/50 border border-indigo-750 border-indigo-700/50 p-1 py-1 px-2.5 rounded-full select-none" id="atelier_active_badge">
-              <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
-              Ateliê Operando
+            <div className="flex items-center gap-1.5 text-2xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/80 p-1 py-1 px-2.5 rounded-full select-none shadow-2xs" id="atelier_active_badge">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              {isCloudSynced ? 'Salvo no Banco' : 'Salvando...'}
             </div>
           </div>
         </header>
@@ -259,20 +424,31 @@ export default function App() {
         {/* MOBILE SIDEBAR DRAW (overlay) */}
         <AnimatePresence>
           {isMobileMenuOpen && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 lg:hidden flex" id="mobile_navbar_drawer">
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 lg:hidden flex" id="mobile_navbar_drawer">
               <motion.div 
                 initial={{ x: '-100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
                 transition={{ type: 'tween', duration: 0.25 }}
-                className="w-64 bg-[#1e293b] border-r border-slate-700 text-white h-full relative p-4 flex flex-col justify-between"
+                className="w-64 bg-white border-r border-slate-200 text-slate-800 h-full relative p-4 flex flex-col justify-between shadow-xl"
               >
                 <div>
-                  <div className="flex items-center justify-between pb-4 border-b border-slate-700 mb-4 font-sans">
-                    <span className="font-extrabold text-sm text-indigo-400">BordadoPro</span>
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4 font-sans">
+                    <div className="flex items-center gap-2.5">
+                      <img 
+                        src={ANDREIA_LOGO_URL} 
+                        alt="Andreia Bordados" 
+                        className="h-9 w-9 rounded-full object-cover border border-rose-200 shadow-2xs"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div>
+                        <span className="font-extrabold text-sm text-slate-900 block leading-tight">Andreia Bordados</span>
+                        <span className="text-4xs font-medium text-rose-700">Personalizados</span>
+                      </div>
+                    </div>
                     <button 
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="p-1.5 text-slate-305 hover:text-white rounded-md cursor-pointer"
+                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md cursor-pointer"
                     >
                       <X className="h-5 w-5" />
                     </button>
@@ -291,10 +467,12 @@ export default function App() {
                             setIsMobileMenuOpen(false);
                           }}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                            active ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'
+                            active 
+                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold' 
+                              : 'text-slate-600 hover:bg-slate-100'
                           }`}
                         >
-                          <IconComponent className="h-4.5 w-4.5" />
+                          <IconComponent className={`h-4.5 w-4.5 ${active ? 'text-indigo-600' : 'text-slate-400'}`} />
                           {tab.label}
                         </button>
                       );
@@ -302,8 +480,8 @@ export default function App() {
                   </nav>
                 </div>
 
-                <div className="text-center text-4xs text-slate-500 py-3 border-t border-slate-800">
-                  Gestão integrada de Ateliê de Bordados
+                <div className="text-center text-4xs text-slate-400 py-3 border-t border-slate-100">
+                  Gestão integrada - Andreia Bordados
                 </div>
               </motion.div>
               
@@ -343,6 +521,7 @@ export default function App() {
                   orders={orders}
                   onAddClient={handleAddClient}
                   onUpdateClient={handleUpdateClient}
+                  onDeleteClient={handleDeleteClient}
                 />
               )}
 
