@@ -17,6 +17,7 @@ import {
   Smartphone, 
   MessageCircle, 
   ChevronRight, 
+  ChevronDown,
   Lightbulb, 
   Layers, 
   FileText,
@@ -25,10 +26,15 @@ import {
   ArrowUpRight,
   Zap,
   ShieldCheck,
-  Check
+  Check,
+  ExternalLink,
+  Download,
+  Copy,
+  X,
+  Eye
 } from 'lucide-react';
 import { ANDREIA_LOGO_URL } from '../assets/logo';
-import { printDocument } from '../utils/printUtils';
+import { printDocument, openPrintInNewTab, generatePrintableHtml } from '../utils/printUtils';
 
 interface ManualTabProps {
   onNavigateToTab?: (tabId: string) => void;
@@ -37,6 +43,32 @@ interface ManualTabProps {
 export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSection, setActiveSection] = useState<string>('todos');
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    introducao: true,
+    clientes: true,
+    pedidos: true,
+    calculadora: true,
+    despesas: true,
+    estoque: true,
+    agenda: true,
+    matrizes: true,
+    relatorios: true
+  });
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [copiedSuccess, setCopiedSuccess] = useState(false);
+
+  // Mapeamento preciso de cada tópico do manual para a respectiva aba no App.tsx
+  const sectionToTabMap: Record<string, string> = {
+    introducao: 'dashboard',
+    clientes: 'clients',
+    pedidos: 'orders',
+    calculadora: 'calculator',
+    despesas: 'expenses',
+    estoque: 'stock',
+    agenda: 'agenda',
+    matrizes: 'gallery',
+    relatorios: 'reports'
+  };
 
   const manualSections = [
     {
@@ -44,6 +76,8 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
       title: '1. Visão Geral & Boas-Vindas',
       icon: Sparkles,
       color: 'indigo',
+      targetTab: 'dashboard',
+      tabLabel: 'Painel Geral',
       summary: 'Apresentação do sistema, salvamento automático em nuvem e funcionamento multiplataforma.',
       content: [
         {
@@ -65,6 +99,8 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
       title: '2. Gestão de Clientes',
       icon: Users,
       color: 'blue',
+      targetTab: 'clients',
+      tabLabel: 'Clientes',
       summary: 'Como cadastrar clientes, consultar histórico de compras e iniciar contato no WhatsApp.',
       content: [
         {
@@ -86,6 +122,8 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
       title: '3. Fila de Pedidos & Impressão',
       icon: ShoppingBag,
       color: 'rose',
+      targetTab: 'orders',
+      tabLabel: 'Fila de Pedidos',
       summary: 'Como criar pedidos, acompanhar as etapas de produção e imprimir orçamentos limpos.',
       content: [
         {
@@ -111,6 +149,8 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
       title: '4. Calculadora de Preço de Bordado',
       icon: Calculator,
       color: 'emerald',
+      targetTab: 'calculator',
+      tabLabel: 'Calculadora de Preço',
       summary: 'Como calcular preços justos e lucrativos com base em pontos, linha, tempo e margem.',
       content: [
         {
@@ -132,6 +172,8 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
       title: '5. Controle de Despesas & Financeiro',
       icon: DollarSign,
       color: 'amber',
+      targetTab: 'expenses',
+      tabLabel: 'Controle de Despesas',
       summary: 'Registro de custos operacionais, insumos, manutenção de máquinas e lucro líquido.',
       content: [
         {
@@ -149,6 +191,8 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
       title: '6. Controle de Estoque de Insumos',
       icon: Package,
       color: 'purple',
+      targetTab: 'stock',
+      tabLabel: 'Controle de Estoque',
       summary: 'Controle de cones de linhas, entretelas, tecidos e alertas de reposição.',
       content: [
         {
@@ -170,6 +214,8 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
       title: '7. Agenda & Prazos de Entrega',
       icon: Calendar,
       color: 'indigo',
+      targetTab: 'agenda',
+      tabLabel: 'Agenda & Prazos',
       summary: 'Visão cronológica dos compromissos para nunca atrasar uma encomenda.',
       content: [
         {
@@ -187,6 +233,8 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
       title: '8. Catálogo de Artes & Matrizes',
       icon: FolderOpen,
       color: 'teal',
+      targetTab: 'gallery',
+      tabLabel: 'Artes & Matrizes',
       summary: 'Organização de matrizes digitais, contagem de pontos, formatos e tags.',
       content: [
         {
@@ -204,6 +252,8 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
       title: '9. Relatórios & Desempenho',
       icon: BarChart3,
       color: 'cyan',
+      targetTab: 'reports',
+      tabLabel: 'Relatórios',
       summary: 'Gráficos gerenciais, faturamento por período e ranking de melhores clientes.',
       content: [
         {
@@ -237,6 +287,32 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
     }
   ];
 
+  const toggleSection = (id: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const expandAll = () => {
+    const allExpanded: Record<string, boolean> = {};
+    manualSections.forEach(s => { allExpanded[s.id] = true; });
+    setExpandedSections(allExpanded);
+  };
+
+  const collapseAll = () => {
+    const allCollapsed: Record<string, boolean> = {};
+    manualSections.forEach(s => { allCollapsed[s.id] = false; });
+    setExpandedSections(allCollapsed);
+  };
+
+  const handleNavigate = (sectionId: string) => {
+    if (onNavigateToTab) {
+      const destTab = sectionToTabMap[sectionId] || sectionId;
+      onNavigateToTab(destTab);
+    }
+  };
+
   const filteredSections = manualSections.filter(section => {
     if (activeSection !== 'todos' && section.id !== activeSection) return false;
     if (!searchQuery) return true;
@@ -249,14 +325,34 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
     return matchesTitle || matchesSummary || matchesContent;
   });
 
-  const handlePrintManual = () => {
-    printDocument('manual_container', 'Manual de Instrucoes - Andreia Bordados');
+  const handleCopyText = () => {
+    let fullText = "MANUAL DE INSTRUÇÕES - ANDREIA BORDADOS\n\n";
+    manualSections.forEach(sec => {
+      fullText += `=== ${sec.title} ===\n${sec.summary}\n\n`;
+      sec.content.forEach(c => {
+        fullText += `* ${c.subTitle}:\n${c.text}\n\n`;
+      });
+      fullText += "\n";
+    });
+
+    navigator.clipboard.writeText(fullText).then(() => {
+      setCopiedSuccess(true);
+      setTimeout(() => setCopiedSuccess(false), 2500);
+    });
+  };
+
+  const handleDirectPrint = () => {
+    printDocument('printable_manual_content', 'Manual_de_Instrucoes_Andreia_Bordados');
+  };
+
+  const handleOpenNewTab = () => {
+    openPrintInNewTab('printable_manual_content', 'Manual_de_Instrucoes_Andreia_Bordados');
   };
 
   return (
     <div className="space-y-6 pb-12" id="manual_container">
       
-      {/* CABEÇALHO DO MANUAL */}
+      {/* 1. CABEÇALHO DO MANUAL */}
       <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-sm relative overflow-hidden border border-indigo-700/50 print:bg-white print:text-slate-900 print:border-none print:p-0">
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -285,14 +381,34 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0 print:hidden">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 print:hidden">
             <button
-              onClick={handlePrintManual}
+              type="button"
+              onClick={() => setShowPrintModal(true)}
               className="px-4 py-2.5 bg-white hover:bg-slate-100 text-indigo-950 font-black text-xs rounded-xl transition flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
-              title="Imprimir ou Salvar Manual em PDF"
+              title="Abrir Visualizador e Gerador de Impressão / PDF"
             >
               <Printer className="h-4 w-4 text-indigo-700" />
-              Imprimir / PDF
+              <span>Imprimir / PDF</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCopyText}
+              className="px-3.5 py-2.5 bg-indigo-700/60 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 border border-indigo-500/50 cursor-pointer active:scale-95"
+              title="Copiar texto do manual completo para a área de transferência"
+            >
+              {copiedSuccess ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-300" />
+                  <span className="text-emerald-300">Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 text-indigo-200" />
+                  <span>Copiar Texto</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -301,9 +417,10 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-8 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none print:hidden"></div>
       </div>
 
-      {/* BARRA DE PESQUISA E FILTROS RÁPIDOS */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3 print:hidden">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      {/* 2. BARRA DE PESQUISA, FILTROS E CONTROLES */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4 print:hidden" id="manual_search_and_filters_bar">
+        
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -311,51 +428,90 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Pesquisar por assunto no manual (ex: Como imprimir, Calcular preço, WhatsApp, Estoque)..."
-              className="w-full pl-10 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition"
+              className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition"
             />
           </div>
-          {searchQuery && (
+
+          <div className="flex items-center gap-2 shrink-0">
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="px-3 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
+              >
+                Limpar busca
+              </button>
+            )}
+
             <button
-              onClick={() => setSearchQuery('')}
-              className="px-3 py-2 text-xs text-slate-600 hover:text-slate-900 bg-slate-100 rounded-xl cursor-pointer"
+              type="button"
+              onClick={expandAll}
+              className="px-3 py-2 text-3xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 rounded-xl transition cursor-pointer"
+              title="Expandir todos os tópicos"
             >
-              Limpar busca
+              Expandir Todos
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={collapseAll}
+              className="px-3 py-2 text-3xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
+              title="Recolher todos os tópicos"
+            >
+              Recolher Todos
+            </button>
+          </div>
         </div>
 
-        {/* Filtros de Seção */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+        {/* Filtros de Seção Interativos com Destaque Visual e Contador */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar pt-1 border-t border-slate-100">
           <button
+            type="button"
             onClick={() => setActiveSection('todos')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition flex items-center gap-1.5 cursor-pointer active:scale-95 ${
               activeSection === 'todos' 
-                ? 'bg-indigo-600 text-white shadow-2xs' 
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-indigo-600 text-white shadow-2xs ring-2 ring-indigo-600/30' 
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
-            Todos os Tópicos
+            <span>Todos os Tópicos</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-4xs font-black ${
+              activeSection === 'todos' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {manualSections.length}
+            </span>
           </button>
-          {manualSections.map(sec => (
-            <button
-              key={sec.id}
-              onClick={() => setActiveSection(sec.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition cursor-pointer ${
-                activeSection === sec.id 
-                  ? 'bg-indigo-600 text-white shadow-2xs' 
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {sec.title.split('.')[1]?.trim() || sec.title}
-            </button>
-          ))}
+
+          {manualSections.map((sec, idx) => {
+            const isSelected = activeSection === sec.id;
+            const shortName = sec.title.split('.')[1]?.trim() || sec.title;
+
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => {
+                  setActiveSection(sec.id);
+                  // Garante que a seção selecionada esteja expandida
+                  setExpandedSections(prev => ({ ...prev, [sec.id]: true }));
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                  isSelected 
+                    ? 'bg-indigo-600 text-white shadow-2xs ring-2 ring-indigo-600/30' 
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <span>{shortName}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* DESTAQUES & DICAS RÁPIDAS */}
+      {/* 3. DESTAQUES & DICAS RÁPIDAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         {quickTips.map((tip, idx) => (
-          <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1.5">
+          <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1.5 hover:border-indigo-200 transition">
             <div className="flex items-center gap-2 text-indigo-700">
               <Lightbulb className="h-4 w-4 text-amber-500 shrink-0" />
               <h2 className="text-xs font-bold text-slate-900">{tip.title}</h2>
@@ -367,15 +523,16 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
         ))}
       </div>
 
-      {/* CORPO DO MANUAL (SEÇÕES DETALHADAS) */}
-      <div className="space-y-6 printable-sheet" id="printable_manual_content">
+      {/* 4. CORPO DO MANUAL (SEÇÕES DETALHADAS COM ACCORDION E BOTÕES DE NAVEGAÇÃO) */}
+      <div className="space-y-5 printable-sheet" id="printable_manual_content">
         {filteredSections.length === 0 ? (
           <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 space-y-3">
             <HelpCircle className="h-10 w-10 text-slate-300 mx-auto" />
             <p className="text-sm font-bold text-slate-700">Nenhum tópico encontrado para "{searchQuery}"</p>
             <p className="text-xs text-slate-400">Tente buscar por termos como "preço", "pedido", "cliente", "impressão" ou "estoque".</p>
             <button
-              onClick={() => { setSearchQuery(''); setActiveSection('todos'); }}
+              type="button"
+              onClick={() => { setSearchQuery(''); setActiveSection('todos'); expandAll(); }}
               className="mt-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-xl hover:bg-indigo-100 transition cursor-pointer"
             >
               Exibir Manual Completo
@@ -384,68 +541,99 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
         ) : (
           filteredSections.map((section) => {
             const IconComponent = section.icon;
+            const isExpanded = expandedSections[section.id] !== false;
 
             return (
               <div 
                 key={section.id} 
-                className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print-card print-avoid-break"
+                className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden print-card print-avoid-break transition hover:border-slate-300"
                 id={`manual_section_${section.id}`}
               >
-                {/* Título da Seção */}
+                {/* Título da Seção Clicável (Accordion) */}
                 <div className="p-4 sm:p-5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-700 border border-indigo-100">
+                  
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.id)}
+                    className="flex items-center gap-3 text-left flex-1 cursor-pointer group"
+                    title={isExpanded ? 'Recolher seção' : 'Expandir seção'}
+                  >
+                    <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-700 border border-indigo-100 group-hover:bg-indigo-100 transition">
                       <IconComponent className="h-5 w-5" />
                     </div>
                     <div>
-                      <h2 className="text-sm sm:text-base font-black text-slate-900">
-                        {section.title}
-                      </h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-indigo-700 transition">
+                          {section.title}
+                        </h2>
+                        <span className="text-slate-400 text-xs">
+                          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </span>
+                      </div>
                       <p className="text-2xs text-slate-500 font-medium">
                         {section.summary}
                       </p>
                     </div>
-                  </div>
+                  </button>
 
-                  {onNavigateToTab && section.id !== 'introducao' && (
+                  {/* Botão para Acessar Diretamente o Módulo no Sistema */}
+                  {onNavigateToTab && section.targetTab && (
                     <button
-                      onClick={() => onNavigateToTab(section.id === 'matrizes' ? 'gallery' : section.id)}
-                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-indigo-700 font-bold text-2xs rounded-lg border border-slate-200 transition cursor-pointer active:scale-95 shadow-2xs print:hidden"
+                      type="button"
+                      onClick={() => handleNavigate(section.id)}
+                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 font-bold text-2xs rounded-xl border border-slate-200 hover:border-indigo-300 transition cursor-pointer active:scale-95 shadow-2xs print:hidden"
+                      title={`Ir agora para a tela de ${section.tabLabel}`}
                     >
-                      <span>Ir para o Módulo</span>
+                      <span>Abrir {section.tabLabel}</span>
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
 
                 {/* Conteúdo Explicativo Passo a Passo */}
-                <div className="p-5 sm:p-6 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {section.content.map((item, cIdx) => (
-                      <div 
-                        key={cIdx} 
-                        className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 space-y-2 print:border-slate-300 print:bg-white"
-                      >
-                        <div className="flex items-start gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
-                          <h3 className="text-xs font-bold text-slate-900 leading-snug">
-                            {item.subTitle}
-                          </h3>
+                {isExpanded && (
+                  <div className="p-5 sm:p-6 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {section.content.map((item, cIdx) => (
+                        <div 
+                          key={cIdx} 
+                          className="p-4 bg-slate-50/70 hover:bg-slate-50 rounded-xl border border-slate-200/80 space-y-2 print:border-slate-300 print:bg-white transition"
+                        >
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                            <h3 className="text-xs font-bold text-slate-900 leading-snug">
+                              {item.subTitle}
+                            </h3>
+                          </div>
+                          <p className="text-2xs text-slate-600 leading-relaxed pl-6">
+                            {item.text}
+                          </p>
                         </div>
-                        <p className="text-2xs text-slate-600 leading-relaxed pl-6">
-                          {item.text}
-                        </p>
+                      ))}
+                    </div>
+
+                    {/* Botão Mobile para Ir ao Módulo */}
+                    {onNavigateToTab && section.targetTab && (
+                      <div className="pt-2 sm:hidden print:hidden border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => handleNavigate(section.id)}
+                          className="w-full flex items-center justify-center gap-1.5 py-2 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200"
+                        >
+                          <span>Ir para {section.tabLabel}</span>
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
+                )}
               </div>
             );
           })
         )}
       </div>
 
-      {/* GUIA RESUMIDO DE ATALHOS E BOAS PRÁTICAS */}
+      {/* 5. GUIA RESUMIDO DE FLUXO DIÁRIO DO ATELIÊ */}
       <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-6 sm:p-8 space-y-4 print:bg-slate-50 print:text-slate-900 print:border print:border-slate-300 print:p-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-rose-500/20 rounded-xl border border-rose-400/30 text-rose-300">
@@ -496,7 +684,115 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
         </div>
       </div>
 
-      {/* RODAPÉ DO MANUAL COM CONTATO DO ATELIÊ */}
+      {/* 6. MODAL VISUAL DE IMPRESSÃO / GERAÇÃO DE PDF */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto print:hidden">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-900 to-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/10 rounded-xl">
+                  <Printer className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">Opções de Impressão & PDF</h3>
+                  <p className="text-2xs text-indigo-200">Escolha como deseja visualizar ou salvar o manual</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(false)}
+                className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                
+                {/* Opção 1: Abrir em Nova Janela para PDF / Impressão */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleOpenNewTab();
+                  }}
+                  className="p-4 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-300 hover:border-indigo-500 rounded-xl text-left space-y-2 transition cursor-pointer group active:scale-98 shadow-xs"
+                >
+                  <div className="flex items-center justify-between text-indigo-700">
+                    <div className="p-2 bg-indigo-600 text-white rounded-lg">
+                      <ExternalLink className="h-5 w-5" />
+                    </div>
+                    <span className="text-3xs font-black uppercase tracking-wider bg-indigo-200/80 text-indigo-900 px-2 py-0.5 rounded-md">
+                      Mais Recomendado
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-indigo-950 group-hover:text-indigo-900">
+                    Abrir em Nova Aba (PDF)
+                  </h4>
+                  <p className="text-3xs text-indigo-800/80 leading-relaxed">
+                    Abre o documento limpo em página inteira A4 pronta para salvar em PDF ou imprimir na impressora.
+                  </p>
+                </button>
+
+                {/* Opção 2: Impressão Direta do Navegador */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPrintModal(false);
+                    setTimeout(() => {
+                      handleDirectPrint();
+                    }, 100);
+                  }}
+                  className="p-4 bg-slate-50 hover:bg-slate-100 border border-slate-300 hover:border-slate-400 rounded-xl text-left space-y-2 transition cursor-pointer group active:scale-98"
+                >
+                  <div className="p-2 bg-slate-800 text-white rounded-lg w-fit">
+                    <Printer className="h-5 w-5" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900">
+                    Imprimir Diretamente
+                  </h4>
+                  <p className="text-3xs text-slate-600 leading-relaxed">
+                    Dispara a caixa de diálogo de impressão direta do seu navegador.
+                  </p>
+                </button>
+
+              </div>
+
+              {/* Opção 3: Copiar texto */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <FileText className="h-4 w-4 text-slate-500" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">Copiar Texto Formatado</p>
+                    <p className="text-3xs text-slate-500">Copie todo o conteúdo para colar no Word ou WhatsApp</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyText}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs rounded-lg border border-slate-300 transition cursor-pointer shrink-0"
+                >
+                  {copiedSuccess ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(false)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 7. RODAPÉ DO MANUAL */}
       <div className="p-4 bg-slate-100 rounded-xl border border-slate-200 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3 print:border-none print:bg-transparent">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-emerald-600" />
