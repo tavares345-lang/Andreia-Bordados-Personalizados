@@ -96,6 +96,8 @@ textarea:focus {
   /* O container de impressão ocupa 100% da folha */
   #printable_order_sheet,
   #printable_quote_sheet,
+  #manual_container,
+  #printable_manual_content,
   .printable-sheet {
     display: block !important;
     position: static !important;

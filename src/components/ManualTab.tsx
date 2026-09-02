@@ -28,6 +28,7 @@ import {
   Check
 } from 'lucide-react';
 import { ANDREIA_LOGO_URL } from '../assets/logo';
+import { printDocument } from '../utils/printUtils';
 
 interface ManualTabProps {
   onNavigateToTab?: (tabId: string) => void;
@@ -249,7 +250,7 @@ export default function ManualTab({ onNavigateToTab }: ManualTabProps) {
   });
 
   const handlePrintManual = () => {
-    window.print();
+    printDocument('manual_container', 'Manual de Instrucoes - Andreia Bordados');
   };
 
   return (

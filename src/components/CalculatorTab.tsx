@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Client, Order, CalculatorPreset } from '../types';
 import { ANDREIA_LOGO_URL } from '../assets/logo';
+import { printDocument } from '../utils/printUtils';
 import { 
   Calculator, 
   HelpCircle, 
@@ -1061,7 +1062,7 @@ export default function CalculatorTab({ clients, onAddOrder, onNavigateToTab }: 
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    window.print();
+                    printDocument('printable_quote_sheet', 'Orcamento_Oficial_Andreia_Bordados');
                   }}
                   className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs transition"
                   title="Imprimir ou Salvar como PDF"
