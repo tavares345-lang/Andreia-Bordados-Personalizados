@@ -19,7 +19,8 @@ import {
   Heart,
   Cloud,
   CheckCircle,
-  Database
+  Database,
+  BookOpen
 } from 'lucide-react';
 import { collection, onSnapshot } from 'firebase/firestore';
 
@@ -62,6 +63,7 @@ import StockTab from './components/StockTab';
 import AgendaTab from './components/AgendaTab';
 import GalleryTab from './components/GalleryTab';
 import ReportsTab from './components/ReportsTab';
+import ManualTab from './components/ManualTab';
 
 import { ANDREIA_LOGO_URL } from './assets/logo';
 
@@ -322,6 +324,7 @@ export default function App() {
     { id: 'agenda', label: 'Agenda & Prazos', icon: Calendar },
     { id: 'gallery', label: 'Artes & Matrizes', icon: FolderOpen },
     { id: 'reports', label: 'Relatórios', icon: BarChart },
+    { id: 'manual', label: 'Manual de Uso', icon: BookOpen },
   ];
 
   const activeTabTitle = navigationTabs.find(t => t.id === activeTab)?.label || 'Andreia Bordados';
@@ -408,7 +411,20 @@ export default function App() {
           </div>
 
           {/* Status do Banco & Ateliê */}
-          <div className="flex items-center gap-2.5 sm:gap-3 text-xs font-sans">
+          <div className="flex items-center gap-2 sm:gap-3 text-xs font-sans">
+            <button
+              onClick={() => setActiveTab('manual')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-3xs font-bold transition cursor-pointer active:scale-95 ${
+                activeTab === 'manual'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/80'
+              }`}
+              title="Abrir Manual de Instruções e Guia do Sistema"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>Manual / Ajuda</span>
+            </button>
+
             <div className="hidden sm:flex items-center gap-1.5 text-slate-700 bg-slate-100/90 py-1 px-2.5 rounded-lg border border-slate-200 text-3xs font-semibold">
               <Database className="h-3.5 w-3.5 text-indigo-600" />
               <span>Nuvem Conectada</span>
@@ -584,6 +600,12 @@ export default function App() {
                   clients={clients}
                   orders={orders}
                   expenses={expenses}
+                />
+              )}
+
+              {activeTab === 'manual' && (
+                <ManualTab 
+                  onNavigateToTab={(id) => setActiveTab(id)}
                 />
               )}
             </motion.div>
