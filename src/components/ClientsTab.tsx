@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Client, Order } from '../types';
 import { 
   Plus, 
@@ -33,6 +33,15 @@ export default function ClientsTab({ clients, orders, onAddClient, onUpdateClien
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+
+  // Sincroniza o cliente selecionado se ele for excluído ou a lista mudar
+  useEffect(() => {
+    if (selectedClient && !clients.some(c => c.id === selectedClient.id)) {
+      setSelectedClient(clients.length > 0 ? clients[0] : null);
+    } else if (!selectedClient && clients.length > 0) {
+      setSelectedClient(clients[0]);
+    }
+  }, [clients, selectedClient]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -371,14 +380,21 @@ export default function ClientsTab({ clients, orders, onAddClient, onUpdateClien
 
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
       {clientToDelete && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4" id="delete_client_modal">
+        <div 
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete_client_modal_title"
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4" 
+          id="delete_client_modal"
+          data-testid="delete-client-modal"
+        >
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 text-rose-600 mb-3">
               <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-100">
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <h4 className="text-base font-bold text-slate-900">Excluir Cliente</h4>
+                <h4 id="delete_client_modal_title" className="text-base font-bold text-slate-900">Excluir Cliente</h4>
                 <p className="text-2xs text-slate-500">Ação irreversível de remoção</p>
               </div>
             </div>
@@ -401,6 +417,8 @@ export default function ClientsTab({ clients, orders, onAddClient, onUpdateClien
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
               <button
                 type="button"
+                id="cancel_delete_client_btn"
+                data-testid="cancel-delete"
                 onClick={() => setClientToDelete(null)}
                 className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl transition cursor-pointer"
               >
@@ -408,10 +426,16 @@ export default function ClientsTab({ clients, orders, onAddClient, onUpdateClien
               </button>
               <button
                 type="button"
+                id="confirm_delete_client_btn"
+                data-testid="confirm-delete"
+                data-testid-action="confirm-delete-client"
+                aria-label="Confirmar Exclusão"
                 onClick={handleConfirmDelete}
                 className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
               >
-                <Trash2 className="h-3.5 w-3.5" /> Confirmar Exclusão
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Confirmar Exclusão</span>
+                <span className="sr-only"> - Excluir</span>
               </button>
             </div>
           </div>
@@ -457,6 +481,9 @@ export default function ClientsTab({ clients, orders, onAddClient, onUpdateClien
               return (
                 <div 
                   key={client.id}
+                  id={`client_card_${client.id}`}
+                  data-testid={`client-card-${client.id}`}
+                  data-client-id={client.id}
                   onClick={() => setSelectedClient(client)}
                   className={`p-3 rounded-xl border text-left cursor-pointer transition flex justify-between items-center group ${
                     active 
@@ -480,6 +507,8 @@ export default function ClientsTab({ clients, orders, onAddClient, onUpdateClien
                     <button
                       type="button"
                       title="Editar Cliente"
+                      aria-label={`Editar cliente ${client.name}`}
+                      data-testid={`edit-client-${client.id}`}
                       onClick={(e) => handleOpenEditForm(client, e)}
                       className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
                     >
@@ -488,7 +517,11 @@ export default function ClientsTab({ clients, orders, onAddClient, onUpdateClien
                     {/* Botão rápido de exclusão na lista */}
                     <button
                       type="button"
+                      id={`delete_client_btn_${client.id}`}
+                      data-testid={`delete-client-${client.id}`}
+                      data-testid-action="delete"
                       title="Excluir Cliente"
+                      aria-label={`Excluir cliente ${client.name}`}
                       onClick={(e) => handlePromptDelete(client, e)}
                       className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                     >
@@ -525,6 +558,8 @@ export default function ClientsTab({ clients, orders, onAddClient, onUpdateClien
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
+                  id="edit_client_details_btn"
+                  data-testid="edit-client-button"
                   onClick={(e) => handleOpenEditForm(selectedClient, e)}
                   className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 >
@@ -533,6 +568,10 @@ export default function ClientsTab({ clients, orders, onAddClient, onUpdateClien
 
                 <button
                   type="button"
+                  id="delete_client_details_btn"
+                  data-testid="delete-client"
+                  data-testid-action="delete-client"
+                  aria-label="Excluir este cliente"
                   onClick={(e) => handlePromptDelete(selectedClient, e)}
                   className="px-3 py-1.5 bg-rose-50/50 hover:bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
                   title="Excluir este cliente"

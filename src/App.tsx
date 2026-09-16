@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, 
@@ -100,6 +100,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedOrderLink, setSelectedOrderLink] = useState<Order | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const deletedClientIdsRef = useRef<Set<string>>(new Set());
 
   // Inicialização e sincronização em tempo real com Firestore
   useEffect(() => {
@@ -108,10 +109,17 @@ export default function App() {
 
     // 2. Assinantes em tempo real (Realtime Listeners)
     const unsubClients = onSnapshot(collection(db, COLLECTIONS.CLIENTS), (snapshot) => {
-      if (!snapshot.empty) {
-        const list = snapshot.docs.map(doc => doc.data() as Client);
+      const list = snapshot.docs
+        .map(doc => doc.data() as Client)
+        .filter(c => !deletedClientIdsRef.current.has(c.id));
+      
+      if (list.length > 0 || snapshot.empty) {
         setClients(list);
-        localStorage.setItem('atelie_clients', JSON.stringify(list));
+        try {
+          localStorage.setItem('atelie_clients', JSON.stringify(list));
+        } catch (e) {
+          console.error('Erro ao salvar clientes no localStorage:', e);
+        }
       }
       setIsCloudSynced(true);
     }, (err) => {
@@ -196,7 +204,16 @@ export default function App() {
 
   const handleDeleteClient = async (id: string) => {
     setIsCloudSynced(false);
-    setClients(prev => prev.filter(c => c.id !== id));
+    deletedClientIdsRef.current.add(id);
+    setClients(prev => {
+      const updated = prev.filter(c => c.id !== id);
+      try {
+        localStorage.setItem('atelie_clients', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Erro ao salvar no localStorage:', e);
+      }
+      return updated;
+    });
     try {
       await removeClient(id);
       setIsCloudSynced(true);
